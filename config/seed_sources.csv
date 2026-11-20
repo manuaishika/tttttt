@@ -1,0 +1,17 @@
+name,url,source_type,relevance,collection_method
+Press Information Bureau,https://pib.gov.in,government,Central government press releases (IndiaAI Mission and MeitY announcements),RSS (direct feed)
+Ministry of Electronics and IT (MeitY),https://www.meity.gov.in,government,Central AI and digital policy; parent of the IndiaAI Mission,Discovery via news search; not scraped
+IndiaAI,https://indiaai.gov.in,government,National AI portal; state AI initiatives directory,Discovery via news search; not scraped
+NITI Aayog,https://www.niti.gov.in,government,National AI strategy author; state-level AI readiness commentary,Discovery via news search; not scraped
+Karnataka state portal,https://www.karnataka.gov.in,government,State government notices (Karnataka),Manual check; not scraped
+Telangana state portal,https://www.telangana.gov.in,government,State government notices (Telangana),Manual check; not scraped
+Tamil Nadu state portal,https://www.tn.gov.in,government,State government notices (Tamil Nadu),Manual check; not scraped
+Kerala state portal,https://kerala.gov.in,government,State government notices (Kerala),Manual check; not scraped
+Maharashtra state portal,https://www.maharashtra.gov.in,government,State government notices (Maharashtra),Manual check; not scraped
+Rajasthan state portal,https://rajasthan.gov.in,government,State government notices (Rajasthan),Manual check; not scraped
+Odisha state portal,https://odisha.gov.in,government,State government notices (Odisha),Manual check; not scraped
+Assam state portal,https://assam.gov.in,government,State government notices (Assam),Manual check; not scraped
+IIT Madras,https://www.iitm.ac.in,academic,Institutional AI research announcements,Manual check; not scraped
+Indian Institute of Science,https://iisc.ac.in,academic,Institutional AI research announcements,Manual check; not scraped
+Observer Research Foundation,https://www.orfonline.org,think_tank,AI governance policy analysis,Manual check; not scraped
+Carnegie India,https://carnegieindia.org,think_tank,AI governance and technology policy analysis,Manual check; not scraped

@@ -120,8 +120,25 @@ def extract_states(text: str) -> list[tuple[str, str]]:
     m = _DELHI.search(text)
     if m:
         found.setdefault("Delhi", (m.start(), m.group(0)))
+    for name, pat in _ABBR_CTX:
+        m = pat.search(text)
+        if m and name not in found:
+            found[name] = (m.start(), m.group(0).strip())
     return [(n, ev) for n, (pos, ev) in sorted(found.items(), key=lambda kv: kv[1][0])]
 
+
+# Contextual abbreviations: a bare "MP"/"UP"/"AP" is ambiguous (Member of Parliament, "up",
+# Associated Press) so it is only accepted in forms that are unambiguous in Indian news:
+# "MP govt", "in UP", "A.P.", a leading "TN ...". Case-sensitive on purpose.
+_GOVT = r"(?:govt|government|cabinet|CM|chief minister|police|assembly|minister)"
+_ABBR_CTX: list[tuple[str, re.Pattern]] = [
+    ("Madhya Pradesh", re.compile(rf"\bMP\s+{_GOVT}\b|\b(?:in|across)\s+MP\b|\bM\.P\.")),
+    ("Uttar Pradesh", re.compile(rf"\bUP\s+{_GOVT}\b|\b(?:in|across|of)\s+UP\b|\bU\.P\.|^UP\b")),
+    ("Andhra Pradesh", re.compile(rf"\bAP\s+{_GOVT}\b|\b(?:in|across)\s+AP\b|\bA\.P\.")),
+    ("Tamil Nadu", re.compile(rf"\bTN\s+{_GOVT}\b|\b(?:in|across)\s+TN\b|^TN\b")),
+    ("West Bengal", re.compile(rf"\bWB\s+{_GOVT}\b|\b(?:in|across)\s+WB\b")),
+    ("Maharashtra", re.compile(rf"\bMaha\s+{_GOVT}\b")),
+]
 
 _CITY_PATTERNS = [(c, re.compile(r"(?<![\w])" + re.escape(c) + r"(?![\w])")) for c in CITY_TO_STATE]
 
@@ -194,7 +211,8 @@ _APPROX = re.compile(r"\b(circa|around|about|approx\w*|early|late|mid|end of|beg
                      r"q[1-4]|h[12]|first half|second half|spring|summer|autumn|winter)\b", re.I)
 
 
-def normalize_date(raw: str | date | datetime | None, today: date | None = None) -> DateResult:
+def normalize_date(raw: str | date | datetime | None, today: date | None = None,
+                   allow_future: bool = False) -> DateResult:
     """Parse a date and say how precise it is. Never invents a date.
 
     * Full dates (ISO, RFC-822 feed dates, '5 March 2025', 'March 5, 2025') -> precision 'day'
@@ -202,6 +220,7 @@ def normalize_date(raw: str | date | datetime | None, today: date | None = None)
     * '2025' -> '2025-01-01', precision 'year'
     * approximate wording ('early 2025', 'Q3 2025') or garbage -> None, 'unknown', with a note
     * dates in the future relative to `today` are rejected (feeds sometimes carry bad dates)
+      unless `allow_future=True` (used for application deadlines, which are future by nature)
     """
     today = today or datetime.now(timezone.utc).date()
     if raw is None or (isinstance(raw, str) and not raw.strip()):
@@ -213,7 +232,7 @@ def normalize_date(raw: str | date | datetime | None, today: date | None = None)
     else:
         s = str(raw).strip()
         res = _parse_str(s)
-    if res.iso and date.fromisoformat(res.iso) > today:
+    if res.iso and not allow_future and date.fromisoformat(res.iso) > today:
         return DateResult(None, "unknown", f"rejected: {res.iso} is in the future")
     return res
 

@@ -84,3 +84,16 @@ def test_future_dates_rejected():
 def test_trailing_state_word_stripped():
     assert normalize_state("Maharashtra State").state == "Maharashtra"
     assert normalize_state("Kerala Government").state == "Kerala"
+
+
+def test_contextual_abbreviations_are_state_evidence_only_in_safe_forms():
+    got = lambda t: [s for s, _ in extract_states(t)]
+    assert got("MP govt partners with Google to build AI-driven governance") == ["Madhya Pradesh"]
+    assert got("Artificial Intelligence Mission to be established in UP") == ["Uttar Pradesh"]
+    assert got("Google AI lab inaugurated at Vignan's University in A.P.") == ["Andhra Pradesh"]
+    assert got("TN eyes Rs 50K-crore investment fund, AI City") == ["Tamil Nadu"]
+    # the traps the contextual rule must NOT fall into:
+    assert got("BJP MP raises AI question in Lok Sabha") == []
+    assert got("Samsung unveils new AI phone, shares up 3%") == []
+    assert got("HP launches AI laptops") == []
+    assert got("AP reports on AI regulation") == []

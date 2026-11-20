@@ -3,30 +3,74 @@
   "window_days": 365,
   "google_news": {
     "base": "https://news.google.com/rss/search",
-    "params": {"hl": "en-IN", "gl": "IN", "ceid": "IN:en"}
+    "params": {
+      "hl": "en-IN",
+      "gl": "IN",
+      "ceid": "IN:en"
+    }
   },
   "state_query_templates": {
-    "policy":       "\"{s}\" (\"AI policy\" OR \"AI mission\" OR \"AI task force\" OR \"artificial intelligence policy\" OR \"AI strategy\")",
-    "deployment":   "\"{s}\" government (AI OR \"artificial intelligence\") (agriculture OR health OR police OR education OR governance OR traffic)",
-    "research":     "\"{s}\" (\"AI centre of excellence\" OR \"AI research\" OR \"AI lab\" OR \"AI institute\" OR \"AI university\")",
-    "partnership":  "\"{s}\" (AI OR \"artificial intelligence\") (MoU OR partnership OR investment OR budget OR \"crore\")",
-    "safety":       "\"{s}\" (\"responsible AI\" OR \"AI ethics\" OR \"AI safety\" OR \"AI governance\" OR deepfake OR \"AI regulation\")",
-    "education":    "\"{s}\" AI (fellowship OR internship OR workshop OR scholarship OR skilling OR curriculum OR hackathon)"
+    "policy": "\"{s}\" (\"AI policy\" OR \"AI mission\" OR \"AI task force\" OR \"artificial intelligence policy\" OR \"AI strategy\")",
+    "deployment": "\"{s}\" government (AI OR \"artificial intelligence\") (agriculture OR health OR police OR education OR governance OR traffic)",
+    "research": "\"{s}\" (\"AI centre of excellence\" OR \"AI research\" OR \"AI lab\" OR \"AI institute\" OR \"AI university\")",
+    "partnership": "\"{s}\" (AI OR \"artificial intelligence\") (MoU OR partnership OR investment OR budget OR \"crore\")",
+    "safety": "\"{s}\" (\"responsible AI\" OR \"AI ethics\" OR \"AI safety\" OR \"AI governance\" OR deepfake OR \"AI regulation\")",
+    "education": "\"{s}\" AI (fellowship OR internship OR workshop OR scholarship OR skilling OR curriculum OR hackathon)"
   },
   "pan_india_queries": {
     "opp_fellowship": "India AI (fellowship OR \"call for applications\") (governance OR policy OR safety OR research)",
     "opp_internship": "India AI (internship OR \"summer school\" OR scholarship) students applications open",
-    "opp_workshop":   "India AI (workshop OR conference OR bootcamp) registration open policy governance",
-    "opp_safety":     "India \"AI safety\" OR \"responsible AI\" (fellowship OR workshop OR programme)"
+    "opp_workshop": "India AI (workshop OR conference OR bootcamp) registration open policy governance",
+    "opp_safety": "India \"AI safety\" OR \"responsible AI\" (fellowship OR workshop OR programme)"
   },
   "direct_feeds": [
-    {"id": "medianama",  "name": "MediaNama",                 "url": "https://www.medianama.com/feed/"},
-    {"id": "et_gov",     "name": "ETGovernment",              "url": "https://government.economictimes.indiatimes.com/rss/topstories"},
-    {"id": "hindu_tech", "name": "The Hindu (Technology)",    "url": "https://www.thehindu.com/sci-tech/technology/feeder/default.rss"},
-    {"id": "bl_infotech","name": "The Hindu BusinessLine (Info-tech)", "url": "https://www.thehindubusinessline.com/info-tech/feeder/default.rss"},
-    {"id": "ie_tech",    "name": "The Indian Express (Technology)", "url": "https://indianexpress.com/section/technology/feed/"},
-    {"id": "pib",        "name": "Press Information Bureau",  "url": "https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3", "publisher_url": "https://pib.gov.in"},
-    {"id": "aim",        "name": "Analytics India Magazine",  "url": "https://analyticsindiamag.com/feed/"},
-    {"id": "inc42",      "name": "Inc42",                     "url": "https://inc42.com/feed/"}
+    {
+      "id": "medianama",
+      "name": "MediaNama",
+      "url": "https://www.medianama.com/feed/",
+      "publisher_url": "https://www.medianama.com"
+    },
+    {
+      "id": "et_gov",
+      "name": "ETGovernment",
+      "url": "https://government.economictimes.indiatimes.com/rss/topstories",
+      "publisher_url": "https://government.economictimes.indiatimes.com"
+    },
+    {
+      "id": "hindu_tech",
+      "name": "The Hindu (Technology)",
+      "url": "https://www.thehindu.com/sci-tech/technology/feeder/default.rss",
+      "publisher_url": "https://www.thehindu.com"
+    },
+    {
+      "id": "bl_infotech",
+      "name": "The Hindu BusinessLine (Info-tech)",
+      "url": "https://www.thehindubusinessline.com/info-tech/feeder/default.rss",
+      "publisher_url": "https://www.thehindubusinessline.com"
+    },
+    {
+      "id": "ie_tech",
+      "name": "The Indian Express (Technology)",
+      "url": "https://indianexpress.com/section/technology/feed/",
+      "publisher_url": "https://indianexpress.com"
+    },
+    {
+      "id": "pib",
+      "name": "Press Information Bureau",
+      "url": "https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3",
+      "publisher_url": "https://pib.gov.in"
+    },
+    {
+      "id": "aim",
+      "name": "Analytics India Magazine",
+      "url": "https://analyticsindiamag.com/feed/",
+      "publisher_url": "https://analyticsindiamag.com"
+    },
+    {
+      "id": "inc42",
+      "name": "Inc42",
+      "url": "https://inc42.com/feed/",
+      "publisher_url": "https://inc42.com"
+    }
   ]
 }

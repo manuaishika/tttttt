@@ -31,7 +31,7 @@ ESTABLISHED_MEDIA = {
     "freepressjournal.in", "mid-day.com", "asianage.com", "thestatesman.com", "millenniumpost.in",
     "assamtribune.com", "nagalandpost.com", "morungexpress.com", "arunachaltimes.in", "northeasttoday.in",
     "pragativadi.com", "hindubusinessline.com", "cnbctv18.com", "zeebiz.com", "ibtimes.co.in", "wionews.com",
-    "bwdisrupt.com", "bwbusinessworld.com", "expressinfra.in", "thetatva.in", "theindianexpress.com",
+    "bwdisrupt.com", "economictimes.com", "rediff.com", "businesstoday.in", "etvbharat.com", "indiatodayne.in", "swarajyamag.com", "organiser.org", "egov.eletsonline.com", "eletsonline.com", "educationtimes.com", "edexlive.com", "careers360.com", "dqindia.com", "cxotoday.com", "jagranjosh.com", "bwbusinessworld.com", "expressinfra.in", "thetatva.in", "theindianexpress.com",
 }
 # Registered domains that look generic but are NOT credible-news evidence on their own.
 UNCLASSIFIED_NOTE = "publisher not in reviewed source lists"
@@ -43,7 +43,10 @@ def domain_of(url: str | None) -> str:
     if not url:
         return ""
     host = urlparse(url if "//" in url else "//" + url).netloc.lower().split(":")[0]
-    return host[4:] if host.startswith("www.") else host
+    for pre in ("www.", "m.", "amp."):
+        if host.startswith(pre):
+            host = host[len(pre):]
+    return host
 
 
 def _matches(host: str, suffixes: tuple[str, ...]) -> bool:
@@ -89,3 +92,21 @@ def verification_for(source_type: str, distinct_publishers: int) -> tuple[str, s
     if source_type in ("established_media", "think_tank"):
         return "single_secondary_source", f"single {source_type.replace('_', ' ')} source; no corroboration found"
     return "unverified", "publisher not in reviewed source lists and no corroboration found"
+
+
+def check_reachability(urls: list[str], timeout: int = 10) -> dict[str, str]:
+    """HEAD/GET each URL once and report 'HTTP <code>' or the error class. Honest status for the
+    registry: some official sites block automated clients or are unreachable from the build
+    environment, and we record that rather than pretending they were monitored."""
+    import requests
+    out = {}
+    s = requests.Session()
+    s.headers["User-Agent"] = "ai-policy-tracker/0.1 (open research project; reachability check)"
+    for u in urls:
+        try:
+            r = s.get(u, timeout=timeout, allow_redirects=True, stream=True)
+            out[u] = f"HTTP {r.status_code}"
+            r.close()
+        except Exception as e:  # noqa: BLE001 - we want the class name, whatever it is
+            out[u] = type(e).__name__
+    return out
