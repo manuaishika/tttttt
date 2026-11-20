@@ -33,8 +33,8 @@ _ANNOUNCED = re.compile(_NOT_FUTURE + r"\b(approves?|approved|clears?|cleared|no
                         r"sanctioned|allocates?|allocated|earmarks?|earmarked|sets up|set up|establishe[sd]|okays?|okayed|"
                         r"bars?|barred|bans?|banned|restricts?|mandates?|directs?|orders?|partners?|partnered|"
                         r"ties up|teams up|joins? hands|collaborates?)\b", re.I)
-_PLANNED = re.compile(r"\b(plans?|planned|planning|proposes?|proposed|proposal|mulls?|considering|eyes|eyeing|aims?|"
-                      r"aiming|wants? to|draft|soon|upcoming|in the works|under review|in final stage|vision|roadmap|"
+_PLANNED = re.compile(r"\b(plans?|planned|planning|proposes?|proposed|proposal|mulls?|considering|eyes|eyeing|aims? (to|at)|"
+                      r"aiming (to|at)|wants? to|draft|soon|upcoming|in the works|under review|in final stage|vision|roadmap|"
                       r"will|set to|to (set up|build|launch|introduce|establish|create|develop|use|deploy|roll out|"
                       r"get|host|train|enforce|start|adopt|unveil|make|become|bring|open|invest|provide|offer))\b", re.I)
 _PRESENT_USE = re.compile(r"\b(uses?|using|leverag\w+|taps?|harness\w*|deploys?)\b.{0,40}\b(ai|artificial intelligence)\b|"

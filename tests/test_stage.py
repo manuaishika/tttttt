@@ -30,3 +30,8 @@ def test_empty_headline_is_unclear():
 ])
 def test_rulings_approvals_and_partnerships_are_announcements(t, stage):
     assert stage_cue(t) == stage
+
+
+def test_acronym_aim_is_not_the_verb_aims():
+    assert stage_cue("Kerala's K-AI Initiative: AI For Governance Under Kerala Artificial Intelligence Mission (K-AIM)") == "unclear"
+    assert stage_cue("Odisha aims to become an AI hub") == "proposed_or_planned"
