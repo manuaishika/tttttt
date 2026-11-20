@@ -1,6 +1,6 @@
 # Limitations
 
-Figures refer to the current dataset (collected 2026-11-20): 864 activity records, 15 opportunities.
+Figures refer to the current dataset (collected 2026-11-20): 878 state-level activities, 25 national-scope activities, 15 opportunities, 49 stakeholder entries.
 
 ## Evidence and content
 - **Mostly single-source.** 561 records rest on one established outlet and 155 on an unrecognised publisher; only 43 are primary-source and 120 corroborated. No record has been manually fact-checked.
@@ -10,6 +10,17 @@ Figures refer to the current dataset (collected 2026-11-20): 864 activity record
 - **One state per record.** Multi-state stories are assigned to one state; others are noted in `state_evidence`.
 - **Stage cues read headline verbs only** (proposed / announced / implemented / unclear; 305 records unclear). A headline saying "launches" may describe a ceremony rather than a running service; the label is not a maturity assessment.
 - **Classification is keyword-based** and unevaluated against a labelled set. Manual audits of samples, not measured precision/recall, guided the rules. Known misses: headlines naming only a politician (e.g. a chief minister by name), and reworded duplicates that stay separate.
+
+## Actors, geography, stage and national scope
+- **Actors are identified from headlines only.** 391 of 878 state-level records name no identifiable actor; generic cues ("cabinet", "High Court") give type and level, not the specific body. Legal authority is stated only for 18 curated registry bodies.
+- **Activity stage is mostly undetermined** (792 of 878): it is assigned only when an official source (medium confidence) or 2+ publishers (low) report the step in a headline. No primary documents have been reviewed yet (`config/stage_evidence.csv` is empty), so no stage has high confidence and "discussed", "under implementation" and "completed" are never assigned.
+- **National-scope coverage is thin** (25 records): discovery queries were built per state, so Union-level activity enters only incidentally. Two weak items remain (a generic "India AI Mission and Emerging AI Ecosystem" piece and an award story).
+- **Regions** are a documented convention adapted from the Zonal Councils, not an official five-way division.
+- **Corrections in this release.** Missing aliases and cities (Arunachal, Jammu Kashmir, Great Nicobar; Calicut, Gorakhpur, Jammu, Kargil) were added. Two records attributed by an institution's own location were re-attributed to Arunachal Pradesh, one merged into an existing record of the same event and one under a new ID; IDs otherwise persist across re-clustering.
+
+## Stakeholder directory
+- Only registry organisations that appear as actors in at least one record (49). No individuals, no relationships layer, no verified contact routes beyond official websites. Websites are curated; on the last check 32 answered HTTP 200, 5 failed from the collection environment (403 or TLS errors; results vary between runs) and 12 company entries have no website curated. Think tanks and AI-safety groups that never appear in news headlines are absent.
+- **Monitoring is not implemented**: nothing is re-checked automatically; "latest record date" is the latest source publication, not the organisation's current status.
 
 ## News APIs
 - Free tiers return **only ~30 days** (GNews: 12-hour delay, 10 articles/request; NewsAPI: from 2026-10-19) and no full text. They cannot backfill the 12-month window, so the trend view excludes API-only records by default.

@@ -25,7 +25,8 @@ from . import schema as S
 from .classify import (classify, screen, screen_after_classification, state_is_subject)
 from .collect import ROOT, collect, load_config
 from .deduplicate import canonical_url, cluster, link_opportunities, normalize_title, pick_canonical
-from .normalize import (city_coords, extract_cities, extract_institutions, extract_states, normalize_date)
+from .normalize import (city_coords, extract_cities, extract_institutions, extract_states, mask_institutions,
+                        normalize_date)
 from .reference import REGIONS, REGION_BY_NAME
 from .actors import identify_actors, is_national_actor, registry as actor_registry
 from .stage import activity_stage, stage_cue
@@ -98,7 +99,7 @@ def assign_state(title: str, desc: str, hint: str | None) -> dict | None:
 
 
 def _anchor(text: str, hint: str | None) -> dict | None:
-    states = extract_states(text)
+    states = extract_states(mask_institutions(text))   # 'IIT Delhi' names an institution, not an activity location
     insts = extract_institutions(text)
     cities = extract_cities(text)
     if states:

@@ -1,8 +1,8 @@
 state,state_code,state_type,raw_items_retrieved_for_state_queries,records,distinct_publishers,primary_source_records,corroborated_records,categories_covered,category_list,institutions_named,first_record_date,last_record_date,evidence_status
 Karnataka,KA,State,378,97,46,2,18,6,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions|safety_responsible_ai,1,2025-11-20,2026-11-20,documented_activity
 Telangana,TS,State,336,60,33,0,7,6,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions|safety_responsible_ai,3,2025-11-23,2026-11-19,documented_activity
-Uttar Pradesh,UP,State,313,57,35,2,6,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,2,2025-12-05,2026-11-20,documented_activity
-Maharashtra,MH,State,272,55,43,0,6,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,2,2025-12-12,2026-11-19,documented_activity
+Uttar Pradesh,UP,State,313,58,35,2,6,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,2,2025-12-05,2026-11-20,documented_activity
+Maharashtra,MH,State,272,54,42,0,6,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,2,2025-12-12,2026-11-19,documented_activity
 Odisha,OD,State,318,53,32,6,6,6,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions|safety_responsible_ai,0,2025-12-17,2026-11-19,documented_activity
 Bihar,BR,State,350,53,33,2,5,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,1,2026-02-17,2026-11-13,documented_activity
 Gujarat,GJ,State,256,52,34,4,7,6,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions|safety_responsible_ai,1,2025-12-12,2026-11-19,documented_activity
@@ -12,10 +12,11 @@ Andhra Pradesh,AP,State,280,40,24,2,5,5,deployment|education_opportunities|partn
 Haryana,HR,State,372,39,21,1,2,6,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions|safety_responsible_ai,0,2026-01-08,2026-11-18,documented_activity
 Rajasthan,RJ,State,254,34,25,5,3,6,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions|safety_responsible_ai,2,2025-12-31,2026-11-19,documented_activity
 Delhi,DL,Union Territory,283,33,26,3,4,4,deployment|education_opportunities|partnerships_investment|research_institutions,3,2025-12-06,2026-11-18,documented_activity
-Kerala,KL,State,334,31,22,1,6,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,0,2025-11-20,2026-11-15,documented_activity
+Kerala,KL,State,334,32,22,1,6,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,0,2025-11-20,2026-11-15,documented_activity
 Punjab,PB,State,235,29,22,0,10,5,deployment|education_opportunities|partnerships_investment|research_institutions|safety_responsible_ai,1,2025-12-21,2026-11-18,documented_activity
 Jharkhand,JH,State,229,19,15,0,1,3,deployment|partnerships_investment|policy_governance,0,2026-01-21,2026-11-03,documented_activity
-Assam,AS,State,160,18,15,1,3,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,1,2025-11-30,2026-10-23,documented_activity
+Assam,AS,State,160,17,15,1,2,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,1,2025-11-30,2026-10-23,documented_activity
+Jammu and Kashmir,JK,Union Territory,171,13,10,1,2,4,deployment|education_opportunities|partnerships_investment|research_institutions,0,2025-12-26,2026-11-19,documented_activity
 Sikkim,SK,State,69,12,11,1,1,4,deployment|education_opportunities|partnerships_investment|policy_governance,0,2026-01-01,2026-10-29,documented_activity
 Madhya Pradesh,MP,State,194,12,10,2,1,4,deployment|education_opportunities|partnerships_investment|policy_governance,0,2026-01-15,2026-11-20,documented_activity
 Meghalaya,ML,State,133,11,9,0,2,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,0,2025-12-03,2026-11-17,documented_activity
@@ -23,15 +24,14 @@ West Bengal,WB,State,220,10,9,0,4,5,deployment|education_opportunities|partnersh
 Chandigarh,CH,Union Territory,163,10,6,0,0,5,deployment|education_opportunities|policy_governance|research_institutions|safety_responsible_ai,1,2026-01-10,2026-11-01,documented_activity
 Uttarakhand,UK,State,238,10,7,0,2,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,1,2025-11-26,2026-11-10,documented_activity
 Nagaland,NL,State,120,9,7,2,0,3,education_opportunities|policy_governance|research_institutions,0,2026-02-19,2026-11-09,documented_activity
-Chhattisgarh,CG,State,154,8,7,0,1,4,deployment|partnerships_investment|policy_governance|research_institutions,0,2026-07-24,2026-11-11,documented_activity
 Tripura,TR,State,170,8,6,0,3,5,deployment|education_opportunities|partnerships_investment|policy_governance|research_institutions,0,2026-02-26,2026-10-16,documented_activity
+Chhattisgarh,CG,State,154,8,7,0,1,4,deployment|partnerships_investment|policy_governance|research_institutions,0,2026-07-24,2026-11-11,documented_activity
 Himachal Pradesh,HP,State,160,8,8,0,1,4,deployment|education_opportunities|partnerships_investment|safety_responsible_ai,1,2026-01-30,2026-11-17,documented_activity
+Arunachal Pradesh,AR,State,165,5,4,0,2,3,deployment|education_opportunities|partnerships_investment,0,2026-04-23,2026-10-26,documented_activity
 Manipur,MN,State,233,5,5,1,2,3,deployment|education_opportunities|partnerships_investment,0,2026-08-05,2026-11-07,documented_activity
-Jammu and Kashmir,JK,Union Territory,171,4,4,0,1,3,deployment|education_opportunities|research_institutions,0,2025-12-26,2026-11-19,documented_activity
 Mizoram,MZ,State,60,4,4,0,1,3,education_opportunities|partnerships_investment|policy_governance,0,2026-08-07,2026-11-07,documented_activity
-Ladakh,LA,Union Territory,168,3,1,3,0,3,deployment|education_opportunities|safety_responsible_ai,0,2026-02-12,2026-07-24,limited_evidence
-Arunachal Pradesh,AR,State,165,2,2,0,0,2,education_opportunities|partnerships_investment,0,2026-06-08,2026-09-23,limited_evidence
+Ladakh,LA,Union Territory,168,4,1,4,0,3,deployment|education_opportunities|safety_responsible_ai,0,2026-01-19,2026-07-24,limited_evidence
+Andaman and Nicobar Islands,AN,Union Territory,73,2,2,0,1,1,research_institutions,0,2026-08-14,2026-08-20,limited_evidence
 Puducherry,PY,Union Territory,120,1,1,0,0,1,research_institutions,0,2026-07-05,2026-07-05,limited_evidence
-Andaman and Nicobar Islands,AN,Union Territory,73,1,1,0,1,1,research_institutions,0,2026-08-20,2026-08-20,limited_evidence
 Dadra and Nagar Haveli and Daman and Diu,DH,Union Territory,44,0,0,0,0,0,,0,,,no_evidence_found_in_research
 Lakshadweep,LD,Union Territory,62,0,0,0,0,0,,0,,,no_evidence_found_in_research

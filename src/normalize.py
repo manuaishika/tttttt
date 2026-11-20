@@ -173,6 +173,15 @@ _INST_PATTERNS_CI = [(i, re.compile(r"(?<![\w])(?:" + "|".join(_inst_pattern(a) 
                      for i in INSTITUTIONS]
 
 
+def mask_institutions(text: str) -> str:
+    """Blank out registry institution names so that 'Delhi' in 'IIT Delhi' or 'Kerala' in 'Digital
+    University Kerala' is not read as the place where an activity happens. The institution still
+    counts as evidence, but as the ACTOR's location (location_basis = actor_location_institution)."""
+    for (inst, cs), (_, ci) in zip(_INST_PATTERNS, _INST_PATTERNS_CI):
+        text = (ci if " " in inst.name else cs).sub(" ", text)
+    return text
+
+
 def extract_institutions(text: str) -> list[Institution]:
     """Institutions from the seed registry mentioned in `text`.
 

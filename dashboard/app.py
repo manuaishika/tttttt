@@ -79,7 +79,7 @@ def set_focus_from(widget_key: str) -> None:
 
 
 # ------------------------------------------------------------------ header + navigation
-h1, h2 = st.columns([1, 1.25], vertical_alignment="bottom")
+h1, h2 = st.columns([0.8, 1.6], vertical_alignment="bottom")
 with h1:
     st.markdown('<div class="eyebrow">India · AI policy & ecosystem</div>', unsafe_allow_html=True)
     st.markdown("# India AI Policy & Ecosystem Intelligence")
@@ -390,6 +390,15 @@ def activity_explorer() -> None:
         links = f6.multiselect("Link type", list(URL_TYPE_LABELS), format_func=URL_TYPE_LABELS.get, key="ax_link",
                                placeholder="Any", help="Direct publisher links point to the article. Google News "
                                                        "redirects open it via news.google.com.")
+        f7, f8, f9 = st.columns(3)
+        actor_cls = f7.multiselect("Actor type", [k for k in ACTOR_CLASS_LABELS if k != "unknown"] + ["unknown"],
+                                   format_func=lambda k: ACTOR_CLASS_LABELS[k] if k != "unknown" else "No actor identified",
+                                   key="ax_actor", placeholder="Any", help="Identity of actors named in the headline.")
+        scope = f8.multiselect("Geographic scope", list(SCOPE_LABELS)[:3], format_func=SCOPE_LABELS.get, key="ax_scope",
+                               placeholder="Any")
+        astage = f9.multiselect("Activity stage (evidence-based)", list(ACTIVITY_STAGE_LABELS),
+                                format_func=ACTIVITY_STAGE_LABELS.get, key="ax_astage", placeholder="Any",
+                                help="Assigned only when an official source or 2+ publishers report the step.")
         d1, d2 = st.columns([2, 1], vertical_alignment="bottom")
         if "ax_dates" not in ss:
             ss.ax_dates = (dmin, dmax)

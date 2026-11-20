@@ -106,3 +106,9 @@ def test_short_form_arunachal():
 def test_added_aliases_and_cities():
     assert [s for s, _ in extract_states("Jammu Kashmir Govt initiates AI centre")] == ["Jammu and Kashmir"]
     assert ("Kozhikode", "Kerala") in extract_cities("Rs 2 crore for AI centre at Calicut varsity")
+
+
+def test_state_inside_institution_name_is_masked():
+    from src.normalize import mask_institutions
+    assert extract_states(mask_institutions("IIT Delhi, Walmart announce AI partnership")) == []
+    assert [s for s, _ in extract_states(mask_institutions("IIT Delhi team helps Kerala deploy AI"))] == ["Kerala"]
