@@ -80,6 +80,9 @@ def validate_record(rec: dict, today: date | None = None) -> list[Issue]:
     if not ds or any(x not in S.DISCOVERY_SOURCES for x in ds):
         err("discovery_sources", f"must be '|'-separated values from {S.DISCOVERY_SOURCES}")
 
+    if rec.get("stage_cue") not in S.STAGE_CUES:
+        err("stage_cue", f"must be one of {S.STAGE_CUES}")
+
     # URL sanity
     url = rec.get("source_url")
     if not _blank(url):
@@ -143,6 +146,8 @@ def validate_record(rec: dict, today: date | None = None) -> list[Issue]:
             err("opportunity_type", f"must be one of {S.OPPORTUNITY_TYPES}")
         if rec.get("deadline_status") not in ("stated", "not_stated"):
             err("deadline_status", "must be stated|not_stated")
+        if rec.get("review_status") not in S.REVIEW_STATUSES:
+            err("review_status", f"must be one of {S.REVIEW_STATUSES}")
         if rec.get("deadline_status") == "not_stated" and not _blank(rec.get("deadline")):
             err("deadline", "deadline set although status is not_stated")
     return out

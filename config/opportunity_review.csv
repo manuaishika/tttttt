@@ -1,0 +1,16 @@
+record_id,review_status,review_note
+r_854aa0acbded,not_an_opportunity,Report on a summit already under way; no application or registration call.
+r_304ed5ed85e4,valid,Hackathon with a stated registration deadline.
+r_088f9a7ad7a1,valid,Institute invites applications for training and internship programmes.
+r_3549a76f5316,valid,Hackathon open to students and engineers; private organiser; source unverified.
+r_3212731a1d6c,valid,National fellowship; eligibility referenced in reports.
+r_631e0a291864,not_an_opportunity,Public-relations professionals' conference where AI is one theme; not an AI opportunity for students or researchers.
+r_60d6c3fee16a,valid,Hackathon hosted by state police.
+r_495df6397c54,valid,National internship programme for engineering students.
+r_de6507dc5ce4,valid,Upcoming regional AI conference with a stated date.
+r_52e3cc27b4b7,valid,Workshop hosted by the Delhi High Court; audience appears to be the legal community.
+r_2bff0275a729,valid,Institute opens applications for a residential programme.
+r_6a8dbc5c32b5,valid,Fellowship with a stated deadline; global programme reported as open to Indian applicants.
+r_af48f40b4425,valid,Fellowship announcement; eligibility not stated in the headline.
+r_9a34f9b26c58,borderline,Public access to a summit expo; an event to attend rather than an application-based opportunity.
+r_8c56fa907d80,valid,Upcoming regional AI conference announced by a government source.

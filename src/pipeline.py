@@ -27,6 +27,7 @@ from .collect import ROOT, collect, load_config
 from .deduplicate import canonical_url, cluster, link_opportunities, normalize_title, pick_canonical
 from .normalize import (city_coords, extract_cities, extract_institutions, extract_states, normalize_date)
 from .reference import REGIONS, REGION_BY_NAME
+from .stage import stage_cue
 from .sources import TIER, check_reachability, classify_source, domain_of, verification_for
 from .validate import validate_records
 
@@ -238,7 +239,7 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
             if donor:
                 rec.update(summary=donor["summary"], summary_basis="publisher_description",
                            source_description=f"[{donor['source_name']}] {donor['source_description']}")
-        rec.update(record_id=rid, verification_status=vs,
+        rec.update(record_id=rid, verification_status=vs, stage_cue=stage_cue(rec["title"]),
                    verification_basis=f"{basis}; source classified via {canon['_source_reason']}",
                    duplicate_count=len(members), corroborating_sources="|".join(others), cluster_id=cluster_id,
                    discovery_sources="|".join(sorted({m["api_source"] for m in members})))
@@ -248,6 +249,17 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
                              "title": m["title"], "source_name": m["source_name"], "source_url": m["source_url"],
                              "published_date": m["published_date"], "url_type": m["url_type"],
                              "discovery_source": m["api_source"], "raw_ref": m["raw_ref"]})
+
+    # ---- manual opportunity review (a dated annotation; never deletes records) -------
+    review_path = ROOT / "config" / "opportunity_review.csv"
+    review = {}
+    if review_path.exists():
+        review = {r["record_id"]: r for r in csv.DictReader(review_path.open())}
+    for rec in records:
+        if rec["record_type"] == "opportunity":
+            rv = review.get(rec["record_id"])
+            rec["review_status"] = rv["review_status"] if rv else "not_reviewed"
+            rec["review_note"] = rv["review_note"] if rv else ""
 
     # ---- validate -------------------------------------------------------------------
     valid, rejected, issues = validate_records(records, today)

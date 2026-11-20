@@ -10,7 +10,7 @@ def good():
     return {
         "record_id": "r1", "record_type": "activity", "state": "Kerala", "state_code": "KL",
         "state_type": "State", "title": "Kerala sets up AI mission", "summary": "Kerala sets up AI mission",
-        "summary_basis": "headline_only", "url_type": "publisher_direct", "discovery_sources": "google_news_rss", "category": "policy_governance", "sector": "none",
+        "summary_basis": "headline_only", "url_type": "publisher_direct", "discovery_sources": "google_news_rss", "stage_cue": "unclear", "category": "policy_governance", "sector": "none",
         "published_date": "2026-05-01", "date_precision": "day", "announcement_date": "",
         "announcement_date_status": "not_determined", "source_name": "The Hindu",
         "source_url": "https://example.org/a", "source_type": "established_media",
@@ -76,7 +76,7 @@ def test_duplicate_ids_rejected():
 
 def test_opportunity_requires_type():
     r = good(); r["record_type"] = "opportunity"
-    assert {"opportunity_type", "deadline_status"} <= errors(r)
+    assert {"opportunity_type", "deadline_status", "review_status"} <= errors(r)
 
 
 def test_source_classification():

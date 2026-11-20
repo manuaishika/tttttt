@@ -87,6 +87,7 @@ ACTIVITY_COLUMNS = [
     "category",                  # (R) taxonomy key
     "sector",                    # sector key
     "category_confidence",       # high | medium | low (rule-match margin)
+    "stage_cue",                 # headline wording: proposed / announced / implemented / unclear (src/stage.py)
     "published_date",            # (R) ISO date the source published
     "date_precision",            # day | month | year | unknown
     "announcement_date",         # date the underlying event happened, if stated
@@ -112,7 +113,11 @@ OPPORTUNITY_EXTRA_COLUMNS = [
     "opportunity_type",          # fellowship | internship | ...
     "deadline",                  # ISO date if stated in the source, else empty
     "deadline_status",           # stated | not_stated
+    "review_status",             # manual review (config/opportunity_review.csv) or not_reviewed
+    "review_note",
 ]
+STAGE_CUES = ["proposed_or_planned", "announced_or_approved", "implemented_or_operational", "unclear"]
+REVIEW_STATUSES = ["valid", "borderline", "not_an_opportunity", "not_reviewed"]
 OPPORTUNITY_COLUMNS = ACTIVITY_COLUMNS + OPPORTUNITY_EXTRA_COLUMNS
 
 REQUIRED_NONEMPTY = [
