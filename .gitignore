@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+.env
+*.egg-info/
+dist/
+build/
+# keep curated data, ignore scratch output
+data/scratch/
