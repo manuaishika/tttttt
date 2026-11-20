@@ -70,6 +70,16 @@ def validate_record(rec: dict, today: date | None = None) -> list[Issue]:
     if rec.get("verification_status") not in S.VERIFICATION_STATUSES:
         err("verification_status", f"unknown status {rec.get('verification_status')!r}")
 
+    if rec.get("summary_basis") not in S.SUMMARY_BASES:
+        err("summary_basis", f"must be one of {S.SUMMARY_BASES}")
+    if rec.get("url_type") not in S.URL_TYPES:
+        err("url_type", f"must be one of {S.URL_TYPES}")
+    elif "news.google.com" in str(rec.get("source_url") or "") and rec.get("url_type") != "google_news_redirect":
+        err("url_type", "news.google.com link must be labelled google_news_redirect")
+    ds = [x for x in str(rec.get("discovery_sources") or "").split("|") if x]
+    if not ds or any(x not in S.DISCOVERY_SOURCES for x in ds):
+        err("discovery_sources", f"must be '|'-separated values from {S.DISCOVERY_SOURCES}")
+
     # URL sanity
     url = rec.get("source_url")
     if not _blank(url):

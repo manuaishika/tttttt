@@ -1,7 +1,7 @@
 """End-to-end processing: raw snapshot -> validated datasets + audit trail.
 
-    python -m src.pipeline                      # process the newest snapshot in data/raw
-    python -m src.pipeline --raw <file.jsonl>   # reproduce a specific run offline
+    python -m src.pipeline                      # process all snapshots in data/raw (RSS + APIs)
+    python -m src.pipeline --raw <file.jsonl>…  # reproduce from specific snapshots offline
     python -m src.pipeline --collect            # collect first, then process
     python -m src.pipeline --check-seeds        # also probe official seed sites' reachability
 
@@ -24,7 +24,7 @@ import pandas as pd
 from . import schema as S
 from .classify import (classify, screen, screen_after_classification, state_is_subject)
 from .collect import ROOT, collect, load_config
-from .deduplicate import cluster, normalize_title, pick_canonical
+from .deduplicate import canonical_url, cluster, normalize_title, pick_canonical
 from .normalize import (city_coords, extract_cities, extract_institutions, extract_states, normalize_date)
 from .reference import REGIONS, REGION_BY_NAME
 from .sources import TIER, check_reachability, classify_source, domain_of, verification_for
@@ -58,11 +58,24 @@ def load_raw(path: Path) -> list[dict]:
         return [json.loads(line) for line in fh if line.strip()]
 
 
-def latest_raw(raw_dir: Path) -> Path:
+def all_raw(raw_dir: Path) -> list[Path]:
+    """Every snapshot (RSS and API). Processing the union is safe: exact-URL repeats and
+    cross-outlet duplicates are collapsed, and the time window drops stale items."""
     files = sorted(raw_dir.glob("*/*.jsonl"))
     if not files:
         raise SystemExit(f"no raw snapshots in {raw_dir}; run with --collect")
-    return files[-1]
+    return files
+
+
+def discovery_source(e: dict) -> str:
+    """Older snapshots predate the api_source field; derive it from the collector kind."""
+    if e.get("api_source"):
+        return e["api_source"]
+    return "google_news_rss" if e.get("kind") == "google_news" else "direct_feed"
+
+
+def url_type_of(link: str) -> str:
+    return "google_news_redirect" if "news.google.com" in (link or "") else "publisher_direct"
 
 
 def assign_state(title: str, desc: str, hint: str | None) -> dict | None:
@@ -103,10 +116,13 @@ def geo_for(state: str, insts, cities) -> tuple[str, str, str, str]:
 
 
 # -------------------------------------------------------------- main process ---
-def process(raw_path: Path, out_dir: Path, today: date | None = None, window_days: int = 365,
+def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = None, window_days: int = 365,
             check_seeds: bool = False) -> dict:
     today = today or datetime.now(timezone.utc).date()
-    raw = load_raw(raw_path)
+    raw_paths = [raw_paths] if isinstance(raw_paths, Path) else list(raw_paths)
+    raw = [e for p in raw_paths for e in load_raw(p)]
+    for e in raw:
+        e["api_source"] = discovery_source(e)
     excluded: list[dict] = []
     cands: list[dict] = []
     seen_raw = Counter()
@@ -142,7 +158,9 @@ def process(raw_path: Path, out_dir: Path, today: date | None = None, window_day
         if not ok:
             exclude(e, reason, title); continue
 
-        s_type, s_reason = classify_source(e.get("publisher_url"), pub_name)
+        utype = url_type_of(e["link"])
+        # For direct links the article's own host is the most reliable publisher identity.
+        s_type, s_reason = classify_source(e.get("publisher_url") or (e["link"] if utype == "publisher_direct" else None), pub_name)
         state = S.PAN_INDIA if pan_india else st["state"]
         reg = REGION_BY_NAME.get(state)
         city, lat, lon, gp = ("", "", "", "none") if pan_india else geo_for(state, st["insts"], st["cities"])
@@ -151,18 +169,20 @@ def process(raw_path: Path, out_dir: Path, today: date | None = None, window_day
             "city": city, "institutions": "|".join(i.name for i in (st["insts"] if st else []) if i.state == state),
             "lat": lat, "lon": lon, "geo_precision": gp,
             "title": title, "summary": _first_sentence(desc) if desc else title,
-            "summary_basis": "feed_description" if desc else "headline_only",
+            "summary_basis": "publisher_description" if desc else "headline_only",
+            "source_description": desc[:500],
             "category": c.category, "sector": c.sector, "category_confidence": c.confidence,
             "record_type": c.record_type, "opportunity_type": c.opportunity_type or "",
             "deadline": c.deadline or "", "deadline_status": "stated" if c.deadline else "not_stated",
             "published_date": d.iso or "", "date_precision": d.precision,
             "announcement_date": "", "announcement_date_status": "not_determined",
-            "source_name": pub_name or domain_of(e.get("link")), "source_url": e["link"],
+            "source_name": pub_name or domain_of(e.get("link")), "source_url": e["link"], "url_type": utype,
+            "api_source": e["api_source"],
             "publisher_url": e.get("publisher_url") or "", "source_type": s_type, "_source_reason": s_reason,
             "state_evidence": "Pan-India opportunity (no state named)" if pan_india else st["evidence"],
             "matched_query": e.get("query_id"), "raw_ref": e.get("raw_ref"), "collected_at": e.get("fetched_at"),
             "norm_title": normalize_title(title, pub_name), "has_description": bool(desc),
-            "url": e["link"],
+            "url": canonical_url(e["link"]),
         })
 
     # ---- collapse exact-URL repeats (same article surfaced by several queries) ------
@@ -196,15 +216,23 @@ def process(raw_path: Path, out_dir: Path, today: date | None = None, window_day
         # corroboration may come from a different source_type than canon (e.g. primary govt + media)
         rid = "r_" + hashlib.sha1(f"{canon['state']}|{canon['norm_title']}|{canon['published_date'][:7]}".encode()).hexdigest()[:12]
         cluster_id = "c_" + hashlib.sha1(str(sorted(m["url"] for m in members)).encode()).hexdigest()[:10]
-        rec = {k: v for k, v in canon.items() if not k.startswith("_") and k not in ("norm_title", "has_description", "url")}
+        rec = {k: v for k, v in canon.items() if not k.startswith("_") and k not in ("norm_title", "has_description", "url", "api_source")}
+        if rec["summary_basis"] == "headline_only":
+            # borrow a publisher description from another outlet in the same cluster, if any
+            donor = next((m for m in members if m["summary_basis"] == "publisher_description"), None)
+            if donor:
+                rec.update(summary=donor["summary"], summary_basis="publisher_description",
+                           source_description=f"[{donor['source_name']}] {donor['source_description']}")
         rec.update(record_id=rid, verification_status=vs,
                    verification_basis=f"{basis}; source classified via {canon['_source_reason']}",
-                   duplicate_count=len(members), corroborating_sources="|".join(others), cluster_id=cluster_id)
+                   duplicate_count=len(members), corroborating_sources="|".join(others), cluster_id=cluster_id,
+                   discovery_sources="|".join(sorted({m["api_source"] for m in members})))
         records.append(rec)
         for m in members:
             dup_rows.append({"cluster_id": cluster_id, "record_id": rid, "role": "canonical" if m is canon else "duplicate",
                              "title": m["title"], "source_name": m["source_name"], "source_url": m["source_url"],
-                             "published_date": m["published_date"], "raw_ref": m["raw_ref"]})
+                             "published_date": m["published_date"], "url_type": m["url_type"],
+                             "discovery_source": m["api_source"], "raw_ref": m["raw_ref"]})
 
     # ---- validate -------------------------------------------------------------------
     valid, rejected, issues = validate_records(records, today)
@@ -238,16 +266,36 @@ def process(raw_path: Path, out_dir: Path, today: date | None = None, window_day
         pd.DataFrame(S.CATEGORIES.items(), columns=["key", "label"]).to_excel(xw, sheet_name="taxonomy", index=False)
 
     summary = {
-        "run_date": today.isoformat(), "raw_file": str(raw_path.relative_to(ROOT)) if raw_path.is_relative_to(ROOT) else str(raw_path),
+        "run_date": today.isoformat(),
+        "raw_files": [str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else str(p) for p in raw_paths],
         "raw_entries": len(raw), "exact_url_repeats_collapsed": url_repeats, "screened_candidates": len(cands), "after_dedup_records": len(records),
         "published_activities": len(activities), "published_opportunities": len(opps),
         "excluded": len(excluded), "exclusion_reasons": dict(Counter(e["exclusion_reason"].split(":")[0] for e in excluded)),
         "validation_warnings": len([i for i in issues if i.severity == "warning"]),
         "verification_status": dict(Counter(r["verification_status"] for r in valid)),
         "states_with_records": len({r["state"] for r in valid if r["state"] != S.PAN_INDIA}),
+        "url_type": dict(Counter(r["url_type"] for r in valid)),
+        "summary_basis": dict(Counter(r["summary_basis"] for r in valid)),
+        "by_discovery_source": source_contribution(raw, cands, valid, rejected),
     }
     (out_dir / "run_summary.json").write_text(json.dumps(summary, indent=2))
     return summary
+
+
+def source_contribution(raw, cands, valid, rejected) -> dict:
+    """Per discovery channel: raw items, screened candidates (after URL collapse), published
+    records it contributed to, records ONLY it found, and records failing validation."""
+    out = {}
+    for src in S.DISCOVERY_SOURCES:
+        ds = lambda r: str(r.get("discovery_sources") or "").split("|")
+        out[src] = {
+            "raw_items": sum(e["api_source"] == src for e in raw),
+            "candidates_after_url_collapse": sum(c["api_source"] == src for c in cands),
+            "published_records_contributed_to": sum(src in ds(r) for r in valid),
+            "published_records_found_only_by_this_source": sum(ds(r) == [src] for r in valid),
+            "records_failing_validation": sum(src in ds(r) for r in rejected),
+        }
+    return out
 
 
 def build_source_registry(cands: list[dict], valid: list[dict], check_seeds: bool) -> pd.DataFrame:
@@ -314,13 +362,15 @@ def build_state_coverage(raw: list[dict], valid: list[dict]) -> pd.DataFrame:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--raw", type=Path, help="raw snapshot (default: newest in data/raw)")
+    ap.add_argument("--raw", type=Path, nargs="+", help="raw snapshot(s) (default: all in data/raw)")
     ap.add_argument("--collect", action="store_true", help="run collection first")
     ap.add_argument("--check-seeds", action="store_true", help="probe reachability of seed official sites")
     ap.add_argument("--out", type=Path, default=PROCESSED)
     a = ap.parse_args(argv)
     cfg = load_config()
-    raw = collect(cfg, ROOT / "data" / "raw") if a.collect else (a.raw or latest_raw(ROOT / "data" / "raw"))
+    if a.collect:
+        collect(cfg, ROOT / "data" / "raw")
+    raw = a.raw or all_raw(ROOT / "data" / "raw")
     summary = process(raw, a.out, window_days=cfg["window_days"], check_seeds=a.check_seeds)
     print(json.dumps(summary, indent=2))
 

@@ -10,7 +10,7 @@ def good():
     return {
         "record_id": "r1", "record_type": "activity", "state": "Kerala", "state_code": "KL",
         "state_type": "State", "title": "Kerala sets up AI mission", "summary": "Kerala sets up AI mission",
-        "summary_basis": "headline_only", "category": "policy_governance", "sector": "none",
+        "summary_basis": "headline_only", "url_type": "publisher_direct", "discovery_sources": "google_news_rss", "category": "policy_governance", "sector": "none",
         "published_date": "2026-05-01", "date_precision": "day", "announcement_date": "",
         "announcement_date_status": "not_determined", "source_name": "The Hindu",
         "source_url": "https://example.org/a", "source_type": "established_media",
@@ -92,3 +92,14 @@ def test_verification_mapping_never_overclaims():
     assert verification_for("established_media", 1)[0] == "single_secondary_source"
     assert verification_for("established_media", 3)[0] == "corroborated"
     assert verification_for("government", 1)[0] == "primary_source"
+
+
+def test_google_redirect_must_be_labelled():
+    r = good(); r["source_url"] = "https://news.google.com/rss/articles/CBMi123"
+    assert "url_type" in errors(r)
+    r["url_type"] = "google_news_redirect"; assert errors(r) == set()
+
+
+def test_discovery_sources_and_summary_basis_controlled():
+    r = good(); r["discovery_sources"] = "twitter"; assert "discovery_sources" in errors(r)
+    r = good(); r["summary_basis"] = "llm_summary"; assert "summary_basis" in errors(r)

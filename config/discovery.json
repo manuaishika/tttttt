@@ -72,5 +72,31 @@
       "url": "https://inc42.com/feed/",
       "publisher_url": "https://inc42.com"
     }
-  ]
+  ],
+  "api": {
+    "_note": "Free tiers: ~100 requests/day each, last ~30 days only, GNews max 10 articles/request at 1 request/second. Queries are run in priority order and resumed on the next run from the fetch logs.",
+    "window_days": 29,
+    "daily_budget": {
+      "gnews": 90,
+      "newsapi": 90
+    },
+    "state_broad_template": "\"{s}\" AND (AI OR \"artificial intelligence\" OR \"machine learning\")",
+    "state_topic_templates": {
+      "policy": "\"{s}\" AND (\"AI policy\" OR \"AI mission\" OR \"AI governance\" OR \"AI task force\")",
+      "safety": "\"{s}\" AND (\"responsible AI\" OR \"AI ethics\" OR \"AI safety\" OR deepfake)",
+      "deployment": "\"{s}\" AND government AND (AI OR \"machine learning\")",
+      "research": "\"{s}\" AND AI AND (\"centre of excellence\" OR university OR IIT OR research)",
+      "partnership": "\"{s}\" AND AI AND (MoU OR partnership OR investment OR budget)",
+      "education": "\"{s}\" AND AI AND (fellowship OR internship OR workshop OR scholarship OR hackathon)"
+    },
+    "pan_india_queries": {
+      "policy": "India AND (\"AI policy\" OR \"AI governance\" OR \"AI regulation\") AND state",
+      "safety": "India AND (\"AI safety\" OR \"responsible AI\" OR \"AI ethics\")",
+      "ml_public": "India AND (\"machine learning\" OR AI) AND (\"state government\" OR \"public sector\")",
+      "research": "India AND AI AND (\"centre of excellence\" OR IIT OR IISc OR IISER)",
+      "partnership": "India AND AI AND MoU AND (\"state government\" OR university)",
+      "opp_fellowship": "India AND AI AND (fellowship OR internship OR scholarship) AND (applications OR apply)",
+      "opp_events": "India AND AI AND (workshop OR hackathon OR \"summer school\") AND (register OR registration OR applications)"
+    }
+  }
 }

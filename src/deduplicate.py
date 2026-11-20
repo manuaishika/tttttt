@@ -90,6 +90,28 @@ def cluster(items: list[dict], threshold: int = 82, window_days: int = 21, min_s
 
 
 def pick_canonical(members: list[dict]) -> dict:
-    """Most authoritative tier, then earliest date (ISO strings sort correctly), then has-description."""
-    return sorted(members, key=lambda m: (TIER.get(m["source_type"], 9), m["published_date"] or "9999",
-                                          0 if m.get("has_description") else 1))[0]
+    """Most authoritative tier, then a direct publisher URL over a Google News redirect, then
+    one with a publisher description, then earliest date (ISO strings sort correctly)."""
+    return sorted(members, key=lambda m: (TIER.get(m["source_type"], 9),
+                                          0 if m.get("url_type", "publisher_direct") == "publisher_direct" else 1,
+                                          0 if m.get("has_description") else 1,
+                                          m["published_date"] or "9999"))[0]
+
+
+_TRACKING = re.compile(r"^(utm_\w+|fbclid|gclid|ref|ref_src|cmpid|from|ito|mc_\w+|guccounter)$", re.I)
+
+
+def canonical_url(url: str) -> str:
+    """Comparable form of a URL for exact-duplicate detection across RSS and APIs: lower-case
+    host without www/m./amp., no tracking params, no fragment, no trailing slash, http==https."""
+    from urllib.parse import urlsplit, parse_qsl, urlencode
+    if not url:
+        return ""
+    u = urlsplit(url.strip())
+    host = u.netloc.lower()
+    for pre in ("www.", "m.", "amp."):
+        if host.startswith(pre):
+            host = host[len(pre):]
+    path = re.sub(r"/amp/?$|/amp(?=/)", "", u.path).rstrip("/")
+    q = urlencode(sorted((k, v) for k, v in parse_qsl(u.query) if not _TRACKING.match(k)))
+    return f"{host}{path}" + (f"?{q}" if q else "")

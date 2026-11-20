@@ -55,7 +55,13 @@ VERIFICATION_STATUSES = {
 
 DATE_PRECISIONS = ["day", "month", "year", "unknown"]
 ANNOUNCEMENT_DATE_STATUSES = ["stated", "not_determined"]
-SUMMARY_BASES = ["feed_description", "headline_only"]
+SUMMARY_BASES = ["publisher_description", "headline_only"]
+# How the record's URL relates to the article: a direct publisher link, or a Google News
+# redirect (the original URL is not exposed by Google News RSS). A URL that resolves is NOT
+# evidence that the claim is true - see verification_status for that.
+URL_TYPES = ["publisher_direct", "google_news_redirect"]
+# Discovery channels (how an item was FOUND). These say nothing about verification.
+DISCOVERY_SOURCES = ["google_news_rss", "direct_feed", "gnews", "newsapi"]
 GEO_PRECISIONS = ["institution", "city", "state", "none"]
 CONFIDENCE_LEVELS = ["high", "medium", "low"]
 
@@ -76,7 +82,8 @@ ACTIVITY_COLUMNS = [
     "lat", "lon", "geo_precision",  # only set from the institution/city registry
     "title",                     # (R) headline
     "summary",                   # (R) one-line summary
-    "summary_basis",             # feed_description | headline_only
+    "summary_basis",             # publisher_description | headline_only (headline is NOT a summary)
+    "source_description",        # publisher's own description/standfirst as supplied by feed/API
     "category",                  # (R) taxonomy key
     "sector",                    # sector key
     "category_confidence",       # high | medium | low (rule-match margin)
@@ -85,7 +92,8 @@ ACTIVITY_COLUMNS = [
     "announcement_date",         # date the underlying event happened, if stated
     "announcement_date_status",  # stated | not_determined
     "source_name",               # (R) publisher
-    "source_url",                # (R) URL as obtained from the feed
+    "source_url",                # (R) URL as obtained from the feed/API
+    "url_type",                  # publisher_direct | google_news_redirect
     "publisher_url",             # publisher home page, if provided by the feed
     "source_type",               # see SOURCE_TYPES
     "verification_status",       # see VERIFICATION_STATUSES
@@ -96,7 +104,8 @@ ACTIVITY_COLUMNS = [
     "state_evidence",            # text that justified the state assignment
     "matched_query",             # which discovery query surfaced it
     "raw_ref",                   # pointer into data/raw snapshot (traceability)
-    "collected_at",              # UTC timestamp of collection
+    "discovery_sources",         # '|'-separated channels that surfaced any item in the cluster
+    "collected_at",              # UTC timestamp of retrieval
 ]
 
 OPPORTUNITY_EXTRA_COLUMNS = [

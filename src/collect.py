@@ -87,6 +87,8 @@ def _entries(job: dict, content: bytes, fetched_at: str) -> list[dict]:
             "source_name": src.get("title") or job.get("source_name"),
             "publisher_url": src.get("href") or job.get("publisher_url"),
             "description": (e.get("summary") or "") if job["kind"] == "direct_feed" else "",
+            "api_source": "google_news_rss" if job["kind"] == "google_news" else "direct_feed",
+            "url_type": "google_news_redirect" if "news.google.com" in (e.get("link") or "") else "publisher_direct",
         })
     return rows
 
@@ -137,15 +139,36 @@ def query_row_id(query_id: str, i: int) -> str:
     return hashlib.sha1(f"{query_id}|{i}".encode()).hexdigest()[:10]
 
 
+def collect_apis(cfg: dict, out_dir: Path, names: list[str] | None = None, budget: int | None = None) -> list[Path]:
+    """Optional keyed-API discovery. Connectors without a key are skipped, never fatal."""
+    from .connectors import available_connectors, run_connector
+    paths = []
+    for conn in available_connectors():
+        if names and conn.name not in names:
+            continue
+        p = run_connector(conn, cfg, out_dir, budget=budget)
+        if p:
+            paths.append(p)
+    return paths
+
+
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Collect raw RSS entries into data/raw/")
-    ap.add_argument("--regions", nargs="*", help="limit to these canonical state/UT names (default: all 36)")
+    ap = argparse.ArgumentParser(description="Collect raw entries (RSS, optionally news APIs) into data/raw/")
+    ap.add_argument("--regions", nargs="*", help="limit RSS to these canonical state/UT names (default: all 36)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--no-direct", action="store_true", help="skip direct publisher/government feeds")
     ap.add_argument("--limit-queries", type=int)
+    ap.add_argument("--no-rss", action="store_true", help="skip RSS collection (e.g. to run only the APIs)")
+    ap.add_argument("--apis", nargs="*", choices=["gnews", "newsapi"],
+                    help="run these keyed APIs (keys from env/.env); omit the flag to skip APIs entirely")
+    ap.add_argument("--api-budget", type=int, help="max requests per API this run (default: config daily_budget)")
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "raw")
     a = ap.parse_args(argv)
-    collect(load_config(), a.out, a.regions, a.workers, not a.no_direct, a.limit_queries)
+    cfg = load_config()
+    if not a.no_rss:
+        collect(cfg, a.out, a.regions, a.workers, not a.no_direct, a.limit_queries)
+    if a.apis is not None:
+        collect_apis(cfg, a.out, a.apis or None, a.api_budget)
 
 
 if __name__ == "__main__":
