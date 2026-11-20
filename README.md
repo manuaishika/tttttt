@@ -1,6 +1,6 @@
 # India AI Policy Tracker
 
-A Python pipeline and Streamlit dashboard that track **AI policy and government activity across Indian states and union territories**: AI missions and policies, deployments in public services, research institutions, partnerships and investments, responsible-AI moves, and student opportunities.
+An intelligence and landscape-mapping system for **India's AI ecosystem, with particular attention to AI governance and AI safety**: who is acting (Union and state bodies, regulators, courts, institutions, labs), what they are doing, where, at what stage, and on what evidence. News and official feeds are the discovery channel, not the object of measurement.
 
 Records are collected from news and official feeds, normalised, deduplicated across outlets, and labelled with **how strongly each is sourced**. Absence of evidence is never shown as absence of activity.
 
@@ -11,12 +11,15 @@ Records are collected from news and official feeds, normalised, deduplicated acr
 - State/date normalisation, transparent inclusion rules, cross-outlet deduplication with an audit trail
 - Provenance on every record: evidence status, link type (direct vs Google redirect), discovery channel, raw snapshot reference
 - Separate datasets for **activities** and **opportunities**
-- Dashboard in five sections: **Overview** (clickable India map + selected-state panel), **State Intelligence**, **Activity Explorer** (all-words search, filters, record detail with provenance), **Opportunities** (manually reviewed), **Methodology** (sources, coverage, downloads)
+- Actor identification (identity kept apart from legal authority), activity vs actor location and geographic scope, and an evidence-gated lifecycle stage
+- Dashboard in six sections: **Overview** (clickable India map, selected-state panel, India AI Intelligence Brief by region), **State Intelligence**, **Activity Explorer** (all-words search, filters, record detail with provenance), **Opportunities** (manually reviewed), **Stakeholders** (registry-backed institutional directory), **Methodology**
 
 ## Data (`data/processed/`)
 | File | Contents |
 |---|---|
-| `activities.csv`, `opportunities.csv` | The two datasets (also in `ai_policy_activity.xlsx`) |
+| `activities.csv`, `opportunities.csv` | State-level activities and opportunities (also in `ai_policy_activity.xlsx`) |
+| `national_activities.csv` | National-scope activities by Union bodies, regulators, Parliament and the Supreme Court |
+| `stakeholders.csv` | Registry-backed organisations named in records, with linked evidence and checked official websites |
 | `excluded_records.csv` | Every rejected item with its reason |
 | `duplicates.csv` | Which reports were merged into each record |
 | `source_registry.csv`, `state_coverage.csv`, `run_summary.json` | Sources, per-state research coverage, run counts |

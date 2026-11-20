@@ -67,6 +67,12 @@ CONFIDENCE_LEVELS = ["high", "medium", "low"]
 
 # Special values for the `state` column
 PAN_INDIA = "Pan-India"  # permitted for opportunities only (online / open to all states)
+NATIONAL = "India (national)"  # national-scope activities (Union bodies, Parliament, Supreme Court); own dataset
+GEOGRAPHIC_SCOPES = ["state", "multi_state", "national", "pan_india_opportunity"]
+LOCATION_BASES = ["named_in_headline", "named_in_description", "actor_location_institution", "city_named",
+                  "national_actor", "none"]
+ACTIVITY_STAGES = ["discussed_signalled", "proposed_announced", "approved_constituted", "under_implementation",
+                   "operational_implemented", "completed_discontinued_on_hold", "undetermined"]
 
 # --- Dataset columns --------------------------------------------------------
 # Order here is the column order in the CSV. Minimum set required by the brief is
@@ -88,6 +94,9 @@ ACTIVITY_COLUMNS = [
     "sector",                    # sector key
     "category_confidence",       # high | medium | low (rule-match margin)
     "stage_cue",                 # headline wording: proposed / announced / implemented / unclear (src/stage.py)
+    "activity_stage",            # evidence-gated lifecycle stage (src/stage.py: activity_stage) or undetermined
+    "stage_confidence",          # high (primary document reviewed) | medium (official source) | low (2+ publishers) | ''
+    "stage_basis",               # what the stage rests on
     "published_date",            # (R) ISO date the source published
     "date_precision",            # day | month | year | unknown
     "announcement_date",         # date the underlying event happened, if stated
@@ -103,6 +112,13 @@ ACTIVITY_COLUMNS = [
     "corroborating_sources",     # '|'-separated other publishers
     "cluster_id",                # links to duplicates.csv
     "state_evidence",            # text that justified the state assignment
+    "states_mentioned",          # '|'-separated: every state named (multi-state support without duplicating records)
+    "geographic_scope",          # state | multi_state | national | pan_india_opportunity
+    "location_basis",            # named_in_headline | named_in_description | actor_location_institution | city_named | national_actor
+    "actors",                    # '|'-separated actors named in the headline (src/actors.py)
+    "actor_classes",             # '|'-separated, aligned with actors (identity, not authority)
+    "actor_levels",              # '|'-separated: union | state | local | non_government | international | unknown
+    "actor_location",            # registry-backed location of named institutions only ('City, State')
     "matched_query",             # which discovery query surfaced it
     "raw_ref",                   # pointer into data/raw snapshot (traceability)
     "discovery_sources",         # '|'-separated channels that surfaced any item in the cluster

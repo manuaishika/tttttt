@@ -27,7 +27,8 @@ from .collect import ROOT, collect, load_config
 from .deduplicate import canonical_url, cluster, link_opportunities, normalize_title, pick_canonical
 from .normalize import (city_coords, extract_cities, extract_institutions, extract_states, normalize_date)
 from .reference import REGIONS, REGION_BY_NAME
-from .stage import stage_cue
+from .actors import identify_actors, is_national_actor, registry as actor_registry
+from .stage import activity_stage, stage_cue
 from .sources import TIER, check_reachability, classify_source, domain_of, verification_for
 from .validate import validate_records
 
@@ -105,15 +106,16 @@ def _anchor(text: str, hint: str | None) -> dict | None:
         pick = hint if hint in names else names[0]
         ev = next(e for s, e in states if s == pick)
         note = f"text: '{ev}'" + (f"; also mentions {', '.join(n for n in names if n != pick)}" if len(names) > 1 else "")
-        return {"state": pick, "evidence": note, "ev_text": ev, "insts": insts, "cities": cities, "basis": "text"}
+        return {"state": pick, "evidence": note, "ev_text": ev, "insts": insts, "cities": cities, "basis": "text",
+                "all": [pick] + [n for n in names if n != pick]}
     if insts:
         i = insts[0]
         return {"state": i.state, "evidence": f"institution: {i.name} ({i.state})", "ev_text": None,
-                "insts": insts, "cities": cities, "basis": "institution"}
+                "insts": insts, "cities": cities, "basis": "institution", "all": [i.state]}
     if cities:
         c, st = cities[0]
         return {"state": st, "evidence": f"city: {c} ({st})", "ev_text": None, "insts": insts,
-                "cities": cities, "basis": "city"}
+                "cities": cities, "basis": "city", "all": [st]}
     return None
 
 
@@ -162,25 +164,43 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
             exclude(e, reason, title); continue
         c = classify(title, date.fromisoformat(d.iso) if d.iso else None, context=desc)
         st = assign_state(title, desc, e.get("hint_state"))
-        pan_india = False
+        actors = identify_actors(title, has_state=st is not None)
+        pan_india = national = False
         if st is None:
             if c.record_type == "opportunity" and str(e.get("query_id", "")).startswith("IN:"):
                 pan_india = True
+            elif c.record_type == "activity" and is_national_actor(actors):
+                national = True       # Union body / regulator / Parliament / Supreme Court acting, no state named
             else:
                 exclude(e, "state_not_in_text" if e.get("hint_state") else "no_state_anchor", title); continue
         subj = bool(st and st["ev_text"] and state_is_subject(title, st["ev_text"]))
-        ok, reason = screen_after_classification(title, desc, c, state_subject=subj or (st is not None and st["basis"] == "institution"))
+        ok, reason = screen_after_classification(title, desc, c, state_subject=subj or national or (st is not None and st["basis"] == "institution"))
         if not ok:
             exclude(e, reason, title); continue
 
         utype = url_type_of(e["link"])
         # For direct links the article's own host is the most reliable publisher identity.
         s_type, s_reason = classify_source(e.get("publisher_url") or (e["link"] if utype == "publisher_direct" else None), pub_name)
-        state = S.PAN_INDIA if pan_india else st["state"]
+        state = S.PAN_INDIA if pan_india else S.NATIONAL if national else st["state"]
         reg = REGION_BY_NAME.get(state)
-        city, lat, lon, gp = ("", "", "", "none") if pan_india else geo_for(state, st["insts"], st["cities"])
+        city, lat, lon, gp = ("", "", "", "none") if (pan_india or national) else geo_for(state, st["insts"], st["cities"])
+        if pan_india:
+            scope, basis, mentioned = "pan_india_opportunity", "none", ""
+        elif national:
+            scope, basis, mentioned = "national", "national_actor", ""
+        else:
+            mentioned = "|".join(st["all"])
+            scope = "multi_state" if len(st["all"]) > 1 else "state"
+            basis = {"institution": "actor_location_institution", "city": "city_named"}.get(st["basis"], "named_in_headline")
+            if "[from publisher description]" in st["evidence"]:
+                basis = "named_in_description"
         cands.append({
-            "state": state, "state_code": reg.code if reg else "", "state_type": reg.kind if reg else "",
+            "state": state, "state_code": reg.code if reg else ("IN" if national else ""),
+            "state_type": reg.kind if reg else ("National" if national else ""),
+            "states_mentioned": mentioned, "geographic_scope": scope, "location_basis": basis,
+            "actors": "|".join(a.name for a in actors), "actor_classes": "|".join(a.actor_class for a in actors),
+            "actor_levels": "|".join(a.level for a in actors),
+            "actor_location": "|".join(f"{a.city}, {a.state}" for a in actors if a.state),
             "city": city, "institutions": "|".join(i.name for i in (st["insts"] if st else []) if i.state == state),
             "lat": lat, "lon": lon, "geo_precision": gp,
             "title": title, "summary": _first_sentence(desc) if desc else title,
@@ -194,7 +214,8 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
             "source_name": pub_name or domain_of(e.get("link")), "source_url": e["link"], "url_type": utype,
             "api_source": e["api_source"],
             "publisher_url": e.get("publisher_url") or "", "source_type": s_type, "_source_reason": s_reason,
-            "state_evidence": "Pan-India opportunity (no state named)" if pan_india else st["evidence"],
+            "state_evidence": ("Pan-India opportunity (no state named)" if pan_india else
+                               "National scope: Union-level actor named, no state named" if national else st["evidence"]),
             "matched_query": e.get("query_id"), "raw_ref": e.get("raw_ref"), "collected_at": e.get("fetched_at"),
             "norm_title": normalize_title(title, pub_name), "has_description": bool(desc),
             "url": canonical_url(e["link"]),
@@ -223,6 +244,18 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
     for c, lab in zip(cands, labels):
         groups[lab].append(c)
 
+    # ID continuity: if a cluster contains an item that was previously published under its own ID,
+    # keep that ID (e.g. when a newly collected report becomes the canonical one).
+    prev_ids = set()
+    for f in ("activities.csv", "opportunities.csv", "national_activities.csv"):
+        if (out_dir / f).exists():
+            prev_ids |= set(pd.read_csv(out_dir / f, dtype=str, usecols=["record_id"])["record_id"])
+    _rid = lambda m: "r_" + hashlib.sha1(f"{m['state']}|{m['norm_title']}|{m['published_date'][:7]}".encode()).hexdigest()[:12]
+
+    stage_manual = {}
+    sp = ROOT / "config" / "stage_evidence.csv"
+    if sp.exists():
+        stage_manual = {r["record_id"]: r for r in csv.DictReader(sp.open()) if r.get("record_id")}
     records, dup_rows = [], []
     for lab, members in groups.items():
         canon = pick_canonical(members)
@@ -230,7 +263,9 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
         others = sorted({m["source_name"] for m in members if m["source_name"].casefold() != canon["source_name"].casefold()})
         vs, basis = verification_for(canon["source_type"], len(publishers))
         # corroboration may come from a different source_type than canon (e.g. primary govt + media)
-        rid = "r_" + hashlib.sha1(f"{canon['state']}|{canon['norm_title']}|{canon['published_date'][:7]}".encode()).hexdigest()[:12]
+        rid = _rid(canon)
+        if rid not in prev_ids:
+            rid = next((_rid(m) for m in members if _rid(m) in prev_ids), rid)
         cluster_id = "c_" + hashlib.sha1(str(sorted(m["url"] for m in members)).encode()).hexdigest()[:10]
         rec = {k: v for k, v in canon.items() if not k.startswith("_") and k not in ("norm_title", "has_description", "url", "api_source")}
         if rec["summary_basis"] == "headline_only":
@@ -239,7 +274,9 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
             if donor:
                 rec.update(summary=donor["summary"], summary_basis="publisher_description",
                            source_description=f"[{donor['source_name']}] {donor['source_description']}")
+        stg, sconf, sbasis = activity_stage(rec["title"], vs, len(publishers), stage_manual.get(rid))
         rec.update(record_id=rid, verification_status=vs, stage_cue=stage_cue(rec["title"]),
+                   activity_stage=stg, stage_confidence=sconf, stage_basis=sbasis,
                    verification_basis=f"{basis}; source classified via {canon['_source_reason']}",
                    duplicate_count=len(members), corroborating_sources="|".join(others), cluster_id=cluster_id,
                    discovery_sources="|".join(sorted({m["api_source"] for m in members})))
@@ -268,7 +305,9 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
                          "source_url": r["source_url"], "hint_state": "", "published_raw": r["published_date"],
                          "query_id": r["matched_query"], "raw_ref": r["raw_ref"]})
 
-    activities = sorted([r for r in valid if r["record_type"] == "activity"], key=lambda r: r["published_date"], reverse=True)
+    activities = sorted([r for r in valid if r["record_type"] == "activity" and r["state"] != S.NATIONAL],
+                        key=lambda r: r["published_date"], reverse=True)
+    national = sorted([r for r in valid if r["state"] == S.NATIONAL], key=lambda r: r["published_date"], reverse=True)
     opps = sorted([r for r in valid if r["record_type"] == "opportunity"], key=lambda r: r["published_date"], reverse=True)
 
     # ---- write ------------------------------------------------------------------------
@@ -277,6 +316,10 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
     df_o = pd.DataFrame(opps, columns=S.OPPORTUNITY_COLUMNS)
     df_a.to_csv(out_dir / "activities.csv", index=False)
     df_o.to_csv(out_dir / "opportunities.csv", index=False)
+    df_n = pd.DataFrame(national, columns=S.ACTIVITY_COLUMNS)
+    df_n.to_csv(out_dir / "national_activities.csv", index=False)
+    stakeholders = build_stakeholders(activities + national + opps, check_seeds)
+    stakeholders.to_csv(out_dir / "stakeholders.csv", index=False)
     pd.DataFrame(excluded).to_csv(out_dir / "excluded_records.csv", index=False)
     pd.DataFrame(dup_rows).to_csv(out_dir / "duplicates.csv", index=False)
 
@@ -288,6 +331,8 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
     with pd.ExcelWriter(out_dir / "ai_policy_activity.xlsx", engine="openpyxl") as xw:
         df_a.to_excel(xw, sheet_name="activities", index=False)
         df_o.to_excel(xw, sheet_name="opportunities", index=False)
+        df_n.to_excel(xw, sheet_name="national_activities", index=False)
+        stakeholders.to_excel(xw, sheet_name="stakeholders", index=False)
         coverage.to_excel(xw, sheet_name="state_coverage", index=False)
         registry.to_excel(xw, sheet_name="source_registry", index=False)
         pd.DataFrame(S.CATEGORIES.items(), columns=["key", "label"]).to_excel(xw, sheet_name="taxonomy", index=False)
@@ -297,6 +342,7 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
         "raw_files": [str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else str(p) for p in raw_paths],
         "raw_entries": len(raw), "exact_url_repeats_collapsed": url_repeats, "screened_candidates": len(cands), "after_dedup_records": len(records),
         "published_activities": len(activities), "published_opportunities": len(opps),
+        "published_national_activities": len(national), "stakeholders": len(stakeholders),
         "excluded": len(excluded), "exclusion_reasons": dict(Counter(e["exclusion_reason"].split(":")[0] for e in excluded)),
         "validation_warnings": len([i for i in issues if i.severity == "warning"]),
         "verification_status": dict(Counter(r["verification_status"] for r in valid)),
@@ -323,6 +369,42 @@ def source_contribution(raw, cands, valid, rejected) -> dict:
             "records_failing_validation": sum(src in ds(r) for r in rejected),
         }
     return out
+
+
+def build_stakeholders(records: list[dict], check_sites: bool) -> pd.DataFrame:
+    """Directory of REGISTRY-backed organisations that appear as actors in at least one published
+    record. Generic headline cues ('State government', 'High Court') are not entities and are
+    excluded; no individual people are listed. Focus areas are the categories of linked records,
+    not an assessment of expertise. Contact routes are not collected (official website only)."""
+    reg = {a.name: a for a, _ in actor_registry()}
+    links: dict[str, list[dict]] = defaultdict(list)
+    for r in records:
+        for name in [x for x in str(r.get("actors") or "").split("|") if x]:
+            if name in reg:
+                links[name].append(r)
+    status = check_reachability(sorted({reg[n].website for n in links if reg[n].website})) if check_sites else {}
+    today = date.today().isoformat()
+    rows = []
+    for name, rs in links.items():
+        a = reg[name]
+        cats = Counter(S.CATEGORIES.get(r["category"], r["category"]) for r in rs)
+        rows.append({
+            "entity": name, "entity_class": a.actor_class, "level": a.level,
+            "location": f"{a.city}, {a.state}" if a.state else "", "authority_note": a.authority_note,
+            "linked_records": len(rs), "linked_states": "|".join(sorted({r["state"] for r in rs})),
+            "focus_areas_from_records": "|".join(f"{k} ({v})" for k, v in cats.most_common()),
+            "latest_record_date": max((r["published_date"] for r in rs if r["published_date"]), default=""),
+            "evidence_record_ids": "|".join(r["record_id"] for r in sorted(rs, key=lambda r: r["published_date"], reverse=True)[:15]),
+            "official_website": a.website,
+            "website_check": (f"{status.get(a.website, 'not checked')} on {today}" if a.website and check_sites
+                              else "not checked" if a.website else "no website curated"),
+            "public_contact_route": "Not collected: use the official website" if a.website else "Not collected",
+            "entry_basis": "project registry (curated identity); linked to records by headline match",
+        })
+    cols = ["entity", "entity_class", "level", "location", "authority_note", "linked_records", "linked_states",
+            "focus_areas_from_records", "latest_record_date", "evidence_record_ids", "official_website", "website_check",
+            "public_contact_route", "entry_basis"]
+    return pd.DataFrame(rows, columns=cols).sort_values(["linked_records", "entity"], ascending=[False, True])
 
 
 def build_source_registry(cands: list[dict], valid: list[dict], check_seeds: bool) -> pd.DataFrame:

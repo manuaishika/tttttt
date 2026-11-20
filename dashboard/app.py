@@ -16,11 +16,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from dashboard.data import (CATEGORY_LABELS, CATEGORY_ORDER, DISCOVERY_LABELS, EVIDENCE_LABELS,  # noqa: E402
-                            REGION_KIND, REGION_NAMES, REVIEW_LABELS, SECTOR_LABELS, SOURCE_TYPE_LABELS,
+from dashboard.data import (ACTIVITY_STAGE_LABELS, ACTOR_CLASS_LABELS, CATEGORY_LABELS, CATEGORY_ORDER,  # noqa: E402
+                            DISCOVERY_LABELS, EVIDENCE_LABELS, LEVEL_LABELS, REGION_GROUPS, REGION_KIND, REGION_NAMES,
+                            REVIEW_LABELS, SCOPE_LABELS, SECTOR_LABELS, SOURCE_TYPE_LABELS,
                             STAGE_LABELS, STAGE_ORDER, URL_TYPE_LABELS, VERIFICATION_LABELS, VERIFICATION_ORDER,
                             file_bytes, load_all, search_mask)
-from dashboard.ui import (BLUE, CSS, INK2, MAP_METRICS, RULE, build_map, category_table_html, esc,  # noqa: E402
+from dashboard.ui import (BLUE, CSS, INK2, MAP_METRICS, RULE, brief_item_html, build_map, category_table_html, esc,  # noqa: E402
                           hbar, hotspots, record_browser, record_row_html, render_detail, select_callback,
                           state_metrics, stats_html)
 
@@ -28,7 +29,7 @@ st.set_page_config(page_title="India AI Policy & Ecosystem Intelligence", page_i
                    initial_sidebar_state="collapsed")
 st.markdown(CSS, unsafe_allow_html=True)
 
-SECTIONS = ["Overview", "State Intelligence", "Activity Explorer", "Opportunities", "Methodology"]
+SECTIONS = ["Overview", "State Intelligence", "Activity Explorer", "Opportunities", "Stakeholders", "Methodology"]
 NONE = "—"
 
 
@@ -45,6 +46,8 @@ def _stamp() -> float:
 D = get_data(_stamp())
 ACTS, OPPS, COV, REG, DUPS, SUMMARY, GEO = (D["activities"], D["opportunities"], D["coverage"], D["registry"],
                                             D["duplicates"], D["summary"], D["geojson"])
+NAT, STAKE = D["national"], D["stakeholders"]
+ALL = pd.concat([ACTS, NAT], ignore_index=True) if not NAT.empty else ACTS
 COLLECTED = SUMMARY.get("run_date", "unknown")
 
 # ------------------------------------------------------------------ state & deep links
@@ -155,12 +158,66 @@ def overview() -> None:
         st.markdown('<div class="muted">Number of records per category (share of all records). Each record has one '
                     'primary category assigned by transparent keyword rules.</div>', unsafe_allow_html=True)
     with b:
-        st.markdown("<h3>Latest well-sourced developments</h3>", unsafe_allow_html=True)
-        st.markdown('<div class="muted">Most recent records published by an official source or reported by two or '
-                    'more publishers.</div>', unsafe_allow_html=True)
-        latest = ACTS[ACTS["strong_evidence"]].sort_values(["published", "duplicate_count"], ascending=False).head(6)
-        st.markdown("".join(record_row_html(r) for _, r in latest.iterrows()), unsafe_allow_html=True)
-        st.button("Explore all activities →", on_click=go_to, args=("Activity Explorer",))
+        st.markdown("<h3>Who acted</h3>", unsafe_allow_html=True)
+        cls = ALL["actor_classes"].str.split("|").explode()
+        cls = cls[cls != ""].map(ACTOR_CLASS_LABELS).value_counts()
+        st.plotly_chart(hbar(cls.index.tolist()[:8], cls.values.tolist()[:8], 300, "records"),
+                        use_container_width=True, config={"displayModeBar": False})
+        n_none = int((ALL["actors"] == "").sum())
+        st.markdown(f'<div class="muted">Actor types named in headlines (a record can name several). {n_none} of '
+                    f'{len(ALL)} records name no identifiable actor in the headline. Identity only; legal authority '
+                    'is stated only for registry bodies.</div>', unsafe_allow_html=True)
+    intelligence_brief()
+
+
+def intelligence_brief() -> None:
+    st.markdown("<h2>India AI Intelligence Brief</h2>", unsafe_allow_html=True)
+    windows = {"30 days": 30, "90 days": 90, "6 months": 182, "12 months": 366}
+    c1, c2 = st.columns([1.2, 2], vertical_alignment="center")
+    w = c1.segmented_control("Sources published in the last", list(windows), default="90 days", key="brief_window") or "90 days"
+    asof = pd.Timestamp(COLLECTED) if COLLECTED != "unknown" else ALL["published"].max()
+    since = asof - pd.Timedelta(days=windows[w])
+    c2.markdown(f'<div class="muted">Records whose <b>source was published</b> between {since:%d %b %Y} and '
+                f'{asof:%d %b %Y} (collection date). Publication date is not the activity date. Within each region, items '
+                'are ordered by strength of sourcing (official source or 2+ publishers first), then whether an actor is '
+                'identified, number of reports and recency. Items are records, not assessments; no significance is '
+                'added beyond what the source states.</div>', unsafe_allow_html=True)
+    W = ALL[ALL["published"].between(since, asof)]
+    W = W.assign(_has_actor=W["actors"] != "").sort_values(
+        ["strong_evidence", "_has_actor", "duplicate_count", "published"], ascending=False)
+
+    def block(title: str, sub: pd.DataFrame, note: str, states: list[str] | None, key: str) -> None:
+        st.markdown(f"<h3 style='margin-top:0.8rem'>{esc(title)}</h3><div class='muted'>{esc(note)} · "
+                    f"{len(sub)} record{'s' if len(sub) != 1 else ''} in window</div>", unsafe_allow_html=True)
+        if sub.empty:
+            st.markdown('<div class="note">No qualifying records in this window. This reflects the collection, not '
+                        'an absence of activity.</div>', unsafe_allow_html=True)
+            return
+        st.markdown("".join(brief_item_html(i, r) for i, (_, r) in enumerate(sub.head(5).iterrows(), 1)),
+                    unsafe_allow_html=True)
+        if len(sub) > 5:
+            st.button(f"All {len(sub)} in Activity Explorer →", key=f"brief_more_{key}", on_click=open_in_explorer,
+                      args=(states, since.date(), asof.date()))
+
+    block("India: national developments", W[W["geographic_scope"] == "national"],
+          "Union ministries, regulators, Parliament, Supreme Court, national missions; no state named", ["India (national)"], "nat")
+    cols = st.columns(2, gap="large")
+    for i, (region, sts) in enumerate(REGION_GROUPS.items()):
+        with cols[i % 2]:
+            block(region, W[W["state"].isin(sts)], ", ".join(sts), sts, region)
+    with st.expander("How regions are defined"):
+        st.markdown("Adapted from the Zonal Councils (States Reorganisation Act, 1956). Central Zonal Council members are "
+                    "assigned to the nearest of the five groups (Uttar Pradesh, Uttarakhand, Madhya Pradesh to Northern; "
+                    "Chhattisgarh to Eastern); Andaman & Nicobar and Lakshadweep to Southern. Multi-state records appear "
+                    "under the region of their primary state.")
+
+
+def open_in_explorer(states: list[str] | None, d0, d1) -> None:
+    reset_explorer()
+    ss.nav = "Activity Explorer"
+    if states:
+        ss.ax_states = states
+    ss.ax_dates = (max(d0, ALL["published"].min().date()), min(d1, ALL["published"].max().date()))
 
 
 def state_panel(name: str) -> None:
@@ -254,6 +311,15 @@ def state_intelligence() -> None:
     if sub.empty:
         return
 
+    cls = sub["actor_classes"].str.split("|").explode()
+    cls = cls[cls != ""].map(ACTOR_CLASS_LABELS).value_counts()
+    stg = sub["activity_stage"].value_counts()
+    st.markdown('<div class="muted"><b>Who acted</b> (actor types named in headlines): '
+                + (esc(", ".join(f"{k} {v}" for k, v in cls.items())) if not cls.empty else "none identified")
+                + f' · {int((sub["actors"] == "").sum())} records name no identifiable actor.<br><b>Evidence-backed stage</b> '
+                + esc(", ".join(f"{ACTIVITY_STAGE_LABELS[k]} {v}" for k, v in stg.items() if k != "undetermined") or "none")
+                + f' · undetermined {int(stg.get("undetermined", 0))} (stage is assigned only when an official source or '
+                '2+ publishers report the step).</div>', unsafe_allow_html=True)
     st.markdown("<h2>Activity by area</h2>", unsafe_allow_html=True)
     st.markdown('<div class="muted">Stage columns read the headline\'s wording (e.g. "plans to", "approves", '
                 '"rolls out"). They separate proposals from announcements from things reported as running; they are not '
@@ -307,12 +373,13 @@ def activity_explorer() -> None:
     st.markdown('<div class="muted">Searches the headline, publisher description (where one exists), state, city, '
                 'named institutions, category, sector, stage and publisher. Every word must appear somewhere in the '
                 'record.</div>', unsafe_allow_html=True)
-    active = sum(bool(ss.get(k)) for k in ("ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link"))
-    dmin, dmax = ACTS["published"].min().date(), ACTS["published"].max().date()
+    active = sum(bool(ss.get(k)) for k in ("ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link",
+                                           "ax_actor", "ax_scope", "ax_astage"))
+    dmin, dmax = ALL["published"].min().date(), ALL["published"].max().date()
     active += int(ss.get("ax_dates", (dmin, dmax)) != (dmin, dmax))
     with st.expander(f"Filters · {active} active" if active else "Filters", expanded=False):
         f1, f2, f3 = st.columns(3)
-        states = f1.multiselect("State / UT", REGION_NAMES, key="ax_states", placeholder="Any")
+        states = f1.multiselect("State / UT", REGION_NAMES + ["India (national)"], key="ax_states", placeholder="Any")
         cats = f2.multiselect("Category", CATEGORY_ORDER, format_func=CATEGORY_LABELS.get, key="ax_cats", placeholder="Any")
         secs = f3.multiselect("Sector", list(SECTOR_LABELS), format_func=SECTOR_LABELS.get, key="ax_secs", placeholder="Any")
         f4, f5, f6 = st.columns(3)
@@ -324,18 +391,24 @@ def activity_explorer() -> None:
                                placeholder="Any", help="Direct publisher links point to the article. Google News "
                                                        "redirects open it via news.google.com.")
         d1, d2 = st.columns([2, 1], vertical_alignment="bottom")
-        dates = d1.slider("Source published between", min_value=dmin, max_value=dmax, value=(dmin, dmax),
+        if "ax_dates" not in ss:
+            ss.ax_dates = (dmin, dmax)
+        dates = d1.slider("Source published between", min_value=dmin, max_value=dmax,
                           format="D MMM YYYY", key="ax_dates",
                           help="Publication date of the source, not the date the activity happened.")
         d2.button("Reset search and filters", on_click=reset_explorer, use_container_width=True)
-    R = ACTS[search_mask(ACTS, q)]
+    R = ALL[search_mask(ALL, q)]
     for col, vals in (("state", states), ("category", cats), ("sector", secs), ("verification_status", evid),
-                      ("stage_cue", stages), ("url_type", links)):
+                      ("stage_cue", stages), ("url_type", links), ("geographic_scope", scope), ("activity_stage", astage)):
         if vals:
             R = R[R[col].isin(vals)]
+    if actor_cls:
+        want = set(actor_cls)
+        R = R[R["actor_classes"].map(lambda s: bool(want & set(s.split("|"))) or ("unknown" in want and not s))]
     if dates != (dmin, dmax):
         R = R[R["published"].between(pd.Timestamp(dates[0]), pd.Timestamp(dates[1]))]
-    st.markdown(f'<h3>{len(R):,} of {len(ACTS):,} records</h3>', unsafe_allow_html=True)
+    st.markdown(f'<h3>{len(R):,} of {len(ALL):,} records</h3><div class="muted">{len(ACTS):,} state-level and '
+                f'{len(NAT):,} national-scope activity records.</div>', unsafe_allow_html=True)
     record_browser(R, DUPS, key="ax_table")
     c1, c2 = st.columns([1, 2])
     c1.download_button("Download these records (CSV)",
@@ -362,7 +435,8 @@ def activity_explorer() -> None:
 
 
 def reset_explorer() -> None:
-    for k in ("ax_q", "ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link", "ax_dates"):
+    for k in ("ax_q", "ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link", "ax_dates", "ax_actor",
+              "ax_scope", "ax_astage"):
         ss.pop(k, None)
 
 
@@ -408,6 +482,60 @@ def opportunities() -> None:
             f'<div class="m">Review note: {esc(r["review_note"] or "—")}</div></div>', unsafe_allow_html=True)
 
 
+# ================================================================== STAKEHOLDERS
+def stakeholders() -> None:
+    st.markdown('<p class="lede">Organisations from the project registry that appear as actors in at least one record: '
+                'government bodies, regulators, courts, missions, universities and research institutes, AI labs and '
+                'technology companies, think tanks and international organisations.</p>', unsafe_allow_html=True)
+    st.markdown('<div class="note">A public <b>institutional</b> directory, not a contact list. No individuals are listed. '
+                'Identity and, for statutory bodies, the stated legal basis come from a curated registry; focus areas are '
+                'the categories of linked records, not an assessment of expertise. Official websites are curated and their '
+                'reachability is checked on the date shown; contact routes beyond the official website have not been '
+                'collected. Companies and labs are listed where Indian activity was reported.</div>', unsafe_allow_html=True)
+    if STAKE.empty:
+        st.info("No stakeholder data. Run the pipeline.")
+        return
+    S_ = STAKE.copy()
+    S_["Type"] = S_["entity_class"].map(ACTOR_CLASS_LABELS).fillna(S_["entity_class"])
+    S_["Level"] = S_["level"].map(LEVEL_LABELS).fillna(S_["level"])
+    S_["linked_records"] = pd.to_numeric(S_["linked_records"], errors="coerce").fillna(0).astype(int)
+    types = sorted(S_["Type"].unique())
+    pick = st.multiselect("Type", types, key="sk_type", placeholder="All types")
+    V = S_[S_["Type"].isin(pick)] if pick else S_
+    left, right = st.columns([1.3, 1], gap="large")
+    with left:
+        ev = st.dataframe(V[["entity", "Type", "Level", "linked_records", "latest_record_date"]]
+                          .rename(columns={"entity": "Organisation", "linked_records": "Records",
+                                           "latest_record_date": "Latest source"}),
+                          hide_index=True, use_container_width=True, height=520, on_select="rerun",
+                          selection_mode="single-row", key="sk_table")
+    with right:
+        if not ev.selection.rows:
+            st.markdown('<div class="note">Select an organisation to see its profile and the records that name it.</div>',
+                        unsafe_allow_html=True)
+            return
+        r = V.iloc[ev.selection.rows[0]]
+        st.markdown(f'<div class="eyebrow">{esc(r["Type"])} · {esc(r["Level"])}</div><h2 style="margin-top:0.1rem !important">'
+                    f'{esc(r["entity"])}</h2>', unsafe_allow_html=True)
+        rows = [("Location", r["location"] or "Not established"),
+                ("Authority / basis", r["authority_note"] or "Not stated (not in curated registry)"),
+                ("Linked records", f'{r["linked_records"]} (states: {r["linked_states"].replace("|", ", ")})'),
+                ("Focus areas (from records)", r["focus_areas_from_records"].replace("|", "; ")),
+                ("Official website", r["official_website"] or "None curated"),
+                ("Website check", r["website_check"]),
+                ("Public contact route", r["public_contact_route"]),
+                ("Entry basis", r["entry_basis"])]
+        st.markdown('<div class="kv">' + "".join(f'<div class="k">{esc(k)}</div><div class="v">{esc(v)}</div>'
+                                                 for k, v in rows) + "</div>", unsafe_allow_html=True)
+        if r["official_website"]:
+            st.link_button("Official website ↗", r["official_website"])
+        ids = [x for x in r["evidence_record_ids"].split("|") if x]
+        linked = pd.concat([ALL, OPPS], ignore_index=True)
+        linked = linked[linked["record_id"].isin(ids)].sort_values("published", ascending=False)
+        st.markdown("<h3 style='margin-top:0.8rem'>Records naming this organisation</h3>", unsafe_allow_html=True)
+        st.markdown("".join(record_row_html(x) for _, x in linked.iterrows()), unsafe_allow_html=True)
+
+
 # ================================================================== METHODOLOGY
 def methodology() -> None:
     left, right = st.columns([1.6, 1], gap="large")
@@ -440,7 +568,17 @@ reason in `excluded_records.csv`.
 State names are normalised (aliases such as Orissa/Keralam; abbreviations only in unambiguous forms like "MP govt";
 the "New Delhi" dateline is not Delhi). One state per record; others mentioned are noted in "Why this state".
 
-## Classification and stage
+## Actors, geography and stage
+Each record lists the **actors named in its headline** (identity: ministry, regulator, court, state government,
+university, AI lab…). Legal or administrative authority is stated only for bodies in the curated registry; otherwise it is
+not asserted, and "no actor identified" is shown rather than guessed. **Geography** is split into the state attributed,
+the basis for it (named in the headline, an institution's own location, a city), all states named, and scope
+(state, multi-state, national). National activities by Union bodies are a separate dataset and are **not** assigned to
+Delhi. **Activity stage** (proposed/announced, approved/constituted, operational…) is assigned only when an official
+source or two or more publishers report the step; everything else is "undetermined". Discussion, ongoing
+implementation and completion are not inferred from headlines.
+
+## Classification and headline wording
 Six categories by transparent keyword rules (headline first, description as fallback), with a confidence level. The
 **stage** label (proposed / announced / implemented / unclear) reads the headline's verbs only. It helps separate plans
 from announcements from things reported as running; it is not a maturity assessment.
@@ -510,6 +648,8 @@ Full detail: `docs/methodology.md` and `docs/limitations.md` in the repository.
                                   ("Excluded items with reasons (CSV)", "excluded_records.csv", "text/csv"),
                                   ("Duplicate merges (CSV)", "duplicates.csv", "text/csv"),
                                   ("Source registry (CSV)", "source_registry.csv", "text/csv"),
+                                  ("National-scope activities (CSV)", "national_activities.csv", "text/csv"),
+                                  ("Stakeholder directory (CSV)", "stakeholders.csv", "text/csv"),
                                   ("State research coverage (CSV)", "state_coverage.csv", "text/csv")]:
             b = file_bytes(name)
             if b:
@@ -538,7 +678,7 @@ Full detail: `docs/methodology.md` and `docs/limitations.md` in the repository.
 
 # ------------------------------------------------------------------ route
 {"Overview": overview, "State Intelligence": state_intelligence, "Activity Explorer": activity_explorer,
- "Opportunities": opportunities, "Methodology": methodology}[section]()
+ "Opportunities": opportunities, "Stakeholders": stakeholders, "Methodology": methodology}[section]()
 
 # keep the address bar shareable: section and state
 st.query_params.update({"section": section, **({"state": ss.focus_state} if ss.focus_state in REGION_NAMES else {})})

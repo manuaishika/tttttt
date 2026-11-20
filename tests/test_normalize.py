@@ -97,3 +97,12 @@ def test_contextual_abbreviations_are_state_evidence_only_in_safe_forms():
     assert got("Samsung unveils new AI phone, shares up 3%") == []
     assert got("HP launches AI laptops") == []
     assert got("AP reports on AI regulation") == []
+
+
+def test_short_form_arunachal():
+    assert [s for s, _ in extract_states("Arunachal signs MoU to establish AI Centre of Excellence")] == ["Arunachal Pradesh"]
+
+
+def test_added_aliases_and_cities():
+    assert [s for s, _ in extract_states("Jammu Kashmir Govt initiates AI centre")] == ["Jammu and Kashmir"]
+    assert ("Kozhikode", "Kerala") in extract_cities("Rs 2 crore for AI centre at Calicut varsity")

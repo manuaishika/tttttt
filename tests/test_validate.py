@@ -10,7 +10,7 @@ def good():
     return {
         "record_id": "r1", "record_type": "activity", "state": "Kerala", "state_code": "KL",
         "state_type": "State", "title": "Kerala sets up AI mission", "summary": "Kerala sets up AI mission",
-        "summary_basis": "headline_only", "url_type": "publisher_direct", "discovery_sources": "google_news_rss", "stage_cue": "unclear", "category": "policy_governance", "sector": "none",
+        "summary_basis": "headline_only", "url_type": "publisher_direct", "discovery_sources": "google_news_rss", "stage_cue": "unclear", "geographic_scope": "state", "location_basis": "named_in_headline", "activity_stage": "undetermined", "category": "policy_governance", "sector": "none",
         "published_date": "2026-05-01", "date_precision": "day", "announcement_date": "",
         "announcement_date_status": "not_determined", "source_name": "The Hindu",
         "source_url": "https://example.org/a", "source_type": "established_media",

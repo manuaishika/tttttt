@@ -30,7 +30,7 @@ class Region:
 REGIONS: list[Region] = [
     # ---- 28 states ----
     Region("Andhra Pradesh", "AP", STATE, "Amaravati", 15.9, 79.7, ("Andhra",), ("AP", "AND")),
-    Region("Arunachal Pradesh", "AR", STATE, "Itanagar", 28.2, 94.7, (), ("AR", "ARP")),
+    Region("Arunachal Pradesh", "AR", STATE, "Itanagar", 28.2, 94.7, ("Arunachal",), ("AR", "ARP")),
     Region("Assam", "AS", STATE, "Dispur", 26.2, 92.9, (), ("AS", "ASM")),
     Region("Bihar", "BR", STATE, "Patna", 25.1, 85.3, (), ("BR", "BH")),
     Region("Chhattisgarh", "CG", STATE, "Raipur", 21.3, 81.9, ("Chattisgarh",), ("CG", "CT", "CHH")),
@@ -59,14 +59,14 @@ REGIONS: list[Region] = [
     Region("West Bengal", "WB", STATE, "Kolkata", 23.0, 87.9, ("Bengal",), ("WB",)),
     # ---- 8 union territories (kept separate, per the project brief) ----
     Region("Andaman and Nicobar Islands", "AN", UT, "Port Blair", 11.7, 92.7,
-           ("Andaman and Nicobar", "Andaman & Nicobar", "A&N Islands"), ("AN",)),
+           ("Andaman and Nicobar", "Andaman & Nicobar", "A&N Islands", "Great Nicobar", "Nicobar"), ("AN",)),
     Region("Chandigarh", "CH", UT, "Chandigarh", 30.7, 76.8, (), ("CH", "CHD")),
     Region("Dadra and Nagar Haveli and Daman and Diu", "DH", UT, "Daman", 20.4, 72.9,
            ("Dadra and Nagar Haveli", "Daman and Diu", "Daman & Diu"), ("DH", "DD", "DN")),
     Region("Delhi", "DL", UT, "New Delhi", 28.6, 77.1,
            ("NCT of Delhi", "National Capital Territory of Delhi"), ("DL", "NCT")),
     Region("Jammu and Kashmir", "JK", UT, "Srinagar/Jammu", 33.8, 76.6,
-           ("Jammu & Kashmir", "J&K"), ("JK",)),
+           ("Jammu & Kashmir", "J&K", "Jammu Kashmir"), ("JK",)),
     Region("Ladakh", "LA", UT, "Leh", 34.2, 77.6, (), ("LA", "LDK")),
     Region("Lakshadweep", "LD", UT, "Kavaratti", 10.6, 72.6, (), ("LD",)),
     Region("Puducherry", "PY", UT, "Puducherry", 11.9, 79.8, ("Pondicherry",), ("PY", "PDY")),
@@ -83,10 +83,10 @@ for _state, _cities in {
     "Karnataka": ["Bengaluru", "Bangalore", "Mysuru", "Mysore", "Mangaluru", "Hubballi", "Belagavi"],
     "Telangana": ["Hyderabad", "Warangal", "Secunderabad"],
     "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Trichy"],
-    "Kerala": ["Thiruvananthapuram", "Trivandrum", "Kochi", "Cochin", "Kozhikode", "Technopark"],
+    "Kerala": ["Thiruvananthapuram", "Trivandrum", "Kochi", "Cochin", "Kozhikode", "Calicut", "Technopark"],
     "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Navi Mumbai", "Thane"],
     "Gujarat": ["Ahmedabad", "Gandhinagar", "Surat", "Vadodara", "GIFT City", "Rajkot"],
-    "Uttar Pradesh": ["Lucknow", "Noida", "Greater Noida", "Kanpur", "Varanasi", "Prayagraj", "Ghaziabad"],
+    "Uttar Pradesh": ["Lucknow", "Noida", "Greater Noida", "Kanpur", "Varanasi", "Prayagraj", "Ghaziabad", "Gorakhpur"],
     "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
     "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior", "Jabalpur"],
     "West Bengal": ["Kolkata", "Siliguri", "Kharagpur"],
@@ -104,7 +104,7 @@ for _state, _cities in {
     "Manipur": ["Imphal"], "Meghalaya": ["Shillong"], "Mizoram": ["Aizawl"],
     "Nagaland": ["Kohima", "Dimapur"], "Sikkim": ["Gangtok"],
     "Arunachal Pradesh": ["Itanagar"], "Tripura": ["Agartala"],
-    "Jammu and Kashmir": ["Srinagar"], "Ladakh": ["Leh"],
+    "Jammu and Kashmir": ["Srinagar", "Jammu"], "Ladakh": ["Leh", "Kargil"],
     "Puducherry": ["Puducherry"], "Chandigarh": ["Chandigarh"],
 }.items():
     for _c in _cities:
@@ -122,7 +122,7 @@ CITY_COORDS: dict[str, tuple[float, float]] = {
     "Chandigarh": (30.7333, 76.7794), "Dehradun": (30.3165, 78.0322), "Ranchi": (23.3441, 85.3096),
     "Raipur": (21.2514, 81.6296), "Coimbatore": (11.0168, 76.9558), "Delhi": (28.6139, 77.2090),
 }
-CITY_ALIAS = {"Bangalore": "Bengaluru", "Trivandrum": "Thiruvananthapuram", "Cochin": "Kochi",
+CITY_ALIAS = {"Bangalore": "Bengaluru", "Trivandrum": "Thiruvananthapuram", "Cochin": "Kochi", "Calicut": "Kozhikode",
               "Vizag": "Visakhapatnam", "Gurgaon": "Gurugram"}
 
 

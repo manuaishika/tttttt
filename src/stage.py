@@ -52,3 +52,48 @@ def stage_cue(title: str) -> str:
     if _PRESENT_USE.search(t):
         return "implemented_or_operational"
     return "unclear"
+
+
+# --------------------------------------------------------------------------------------
+# Evidence-gated lifecycle stage (separate from the headline cue above)
+# --------------------------------------------------------------------------------------
+ACTIVITY_STAGES = {
+    "discussed_signalled": "Discussed / signalled",
+    "proposed_announced": "Proposed / announced",
+    "approved_constituted": "Approved / constituted",
+    "under_implementation": "Under implementation",
+    "operational_implemented": "Operational / implemented",
+    "completed_discontinued_on_hold": "Completed / discontinued / on hold",
+    "undetermined": "Undetermined",
+}
+_A_APPROVED = re.compile(_NOT_FUTURE + r"(?<!-)\b(approves?|approved|clears?|cleared|nod|okays?|okayed|notif(y|ies|ied)|"
+                         r"constitutes?|constituted|sanctions?|sanctioned|signs?|signed|inks?|inked|mous?)\b", re.I)
+_A_OPERATIONAL = re.compile(_NOT_FUTURE + r"\b(inaugurat\w+|rolls? out|rolled out|deployed|goes live|went live|"
+                            r"operational|commission(s|ed))\b", re.I)
+_A_PROPOSED = re.compile(r"\b(announc\w+|unveil\w*|launch\w*|propos\w+|plans?|planned|to set up|to establish|will)\b", re.I)
+
+
+def activity_stage(title: str, verification_status: str, n_publishers: int,
+                   manual: dict | None = None) -> tuple[str, str, str]:
+    """(stage, confidence, basis).
+
+    * A manual entry (config/stage_evidence.csv: reviewed primary document) wins: confidence 'high'.
+    * Otherwise a stage is assigned ONLY if the step is reported by an official publisher
+      (primary_source -> 'medium') or by 2+ independent publishers (corroborated -> 'low').
+      Anything else is 'undetermined'.
+    * Ambiguous wording gets the LOWER stage ('launches policy' -> proposed/announced).
+      'Discussed', 'under implementation' and 'completed' are never inferred from headlines.
+    """
+    if manual:
+        return manual["activity_stage"], "high", f"Primary evidence reviewed: {manual['evidence']}"
+    if verification_status == "primary_source":
+        conf, who = "medium", "headline of an official (government/academic) publication"
+    elif verification_status == "corroborated":
+        conf, who = "low", f"headline wording reported by {n_publishers} publishers"
+    else:
+        return "undetermined", "", "Single or unverified source: stage not assigned"
+    for stage, pat in (("approved_constituted", _A_APPROVED), ("operational_implemented", _A_OPERATIONAL),
+                       ("proposed_announced", _A_PROPOSED)):
+        if pat.search(title or ""):
+            return stage, conf, who
+    return "undetermined", "", "No stage step stated in the well-sourced headline"

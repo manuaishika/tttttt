@@ -11,8 +11,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from dashboard.data import (CATEGORY_LABELS, CATEGORY_ORDER, DISCOVERY_LABELS, REGION_NAMES, REGION_POINT,
-                            STAGE_LABELS, STAGE_ORDER)
+from dashboard.data import (CATEGORY_LABELS, CATEGORY_ORDER, DISCOVERY_LABELS, LOCATION_BASIS_LABELS, REGION_NAMES,
+                            REGION_POINT, STAGE_LABELS, STAGE_ORDER)
 
 # Restrained palette: navy/blue/neutral. Sequential ramp validated (one hue, light -> dark).
 NAVY, BLUE = "#0f2747", "#1c5cab"
@@ -92,6 +92,20 @@ def record_row_html(r: pd.Series, show_state: bool = True) -> str:
             f'published {date} · {esc(r["category_label"])}</div>'
             f'<div style="margin-top:0.25rem">{evidence_tag(r["verification_status"], r["verification_label"])}'
             f'<span class="tag">{esc(r["stage_label"])}</span><span class="tag">{esc(r["url_label"])}</span></div></div>')
+
+
+def brief_item_html(i: int, r: pd.Series) -> str:
+    actor = esc(r["actor_display"]) if r["actors"] else '<span style="color:#7a808c">Actor not identified in headline</span>'
+    title = esc(r["title"])
+    head = f'<a href="{esc(r["link"])}" target="_blank" rel="noopener">{title}</a>' if r["link"] else title
+    date = r["published"].strftime("%d %b %Y") if pd.notna(r["published"]) else "date unknown"
+    where = r["state"] if r["geographic_scope"] != "multi_state" else r["states_mentioned"].replace("|", ", ")
+    stage = (f'{r["activity_stage_label"]} ({r["stage_confidence"]} confidence)' if r["activity_stage"] != "undetermined"
+             else "stage undetermined")
+    return (f'<div class="rec"><div style="display:flex;gap:0.6rem"><div class="muted" style="min-width:1.2rem">{i}.</div>'
+            f'<div><div style="font-size:0.84rem;color:#0f2747;font-weight:600">{actor}</div>{head}'
+            f'<div class="m">{esc(where)} · {esc(r["category_label"])} · {esc(stage)} · source published {date} · '
+            f'{esc(r["source_name"])} · {esc(r["verification_label"])}</div></div></div></div>')
 
 
 # --------------------------------------------------------------------------- map
@@ -191,7 +205,8 @@ def render_detail(r: pd.Series, dups: pd.DataFrame) -> None:
     st.markdown(f'<div class="detail"><div class="eyebrow">{esc(r["category_label"])} · {esc(r["sector_label"])}</div>'
                 f'<h3>{esc(r["title"])}</h3></div>', unsafe_allow_html=True)
     st.markdown(f'{evidence_tag(r["verification_status"], r["verification_label"])}'
-                f'<span class="tag">{esc(r["stage_label"])} (headline wording)</span>'
+                f'<span class="tag">Stage: {esc(r["activity_stage_label"])}</span>'
+                f'<span class="tag">Headline wording: {esc(r["stage_label"])}</span>'
                 f'<span class="tag">{esc(r["url_label"])}</span>', unsafe_allow_html=True)
     if r["description_full"]:
         st.markdown(f'<div class="desc" style="margin-top:0.7rem"><div class="eyebrow" style="margin-bottom:0.2rem">'
@@ -211,6 +226,14 @@ def render_detail(r: pd.Series, dups: pd.DataFrame) -> None:
     rows = [
         ("State / UT", f'{r["state"]}' + (f' · {r["city"]}' if r["city"] else "")),
         ("Why this state", r["state_evidence"]),
+        ("Geographic scope", r["scope_label"] + (f' (states named: {r["states_mentioned"].replace("|", ", ")})'
+                                                 if r["geographic_scope"] == "multi_state" else "")),
+        ("Location basis", LOCATION_BASIS_LABELS.get(r["location_basis"], "not recorded")),
+        ("Actors named", (f'{r["actor_display"]} ({r["actor_class_display"]})' if r["actors"]
+                          else "No actor identifiable from the headline")),
+        ("Actor location", r["actor_location"].replace("|", "; ") or "Not established"),
+        ("Activity stage", r["activity_stage_label"] + (f' (confidence {r["stage_confidence"]}): {r["stage_basis"]}'
+                                                        if r["stage_confidence"] else f': {r["stage_basis"] or "not assessed"}')),
         ("Institutions", insts),
         ("Published", f'{date} (source publication date; precision: {r["date_precision"] or "unknown"})'),
         ("Event date", "Not determined: the date the activity happened is not extracted"),
@@ -219,8 +242,8 @@ def render_detail(r: pd.Series, dups: pd.DataFrame) -> None:
         ("Link", link_note),
         ("Other publishers", ", ".join(others) if others else "none in this collection"),
         ("Found via", r["discovery_label"]),
-        ("Classification", f'{r["category_label"]} (rule confidence: {r["category_confidence"] or "n/a"}); '
-                           f'stage cue from headline verbs, not a maturity assessment'),
+        ("Classification", f'{r["category_label"]} (rule confidence: {r["category_confidence"] or "n/a"}); headline '
+                           f'wording cue: {r["stage_label"]} (verbs only, not a maturity assessment)'),
         ("Record ID", f'{r["record_id"]} · cluster {r["cluster_id"]} · raw ref {r["raw_ref"]}'),
         ("Collected", r["collected_at"] or "unknown"),
     ]

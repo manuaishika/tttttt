@@ -19,7 +19,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from src import schema as S                     # noqa: E402
 from src.reference import REGIONS               # noqa: E402
-from src.stage import STAGES                    # noqa: E402
+from src.stage import ACTIVITY_STAGES, STAGES   # noqa: E402
+from src.actors import ACTOR_CLASSES, LEVELS     # noqa: E402
 
 PROCESSED = ROOT / "data" / "processed"
 GEOJSON = ROOT / "dashboard" / "assets" / "india_states.geojson"
@@ -46,6 +47,30 @@ EVIDENCE_LABELS = {"documented_activity": "Documented activity in this collectio
                    "no_evidence_found_in_research": "No evidence found in this collection"}
 REVIEW_LABELS = {"valid": "Reviewed: genuine opportunity", "borderline": "Reviewed: borderline",
                  "not_an_opportunity": "Reviewed: not an opportunity", "not_reviewed": "Not yet reviewed"}
+ACTIVITY_STAGE_LABELS = ACTIVITY_STAGES
+ACTOR_CLASS_LABELS = ACTOR_CLASSES
+LEVEL_LABELS = LEVELS
+SCOPE_LABELS = {"state": "State-specific", "multi_state": "Multi-state", "national": "National",
+                "pan_india_opportunity": "Pan-India (opportunity)"}
+LOCATION_BASIS_LABELS = {"named_in_headline": "State named in the headline (activity location)",
+                         "named_in_description": "State named in the publisher description",
+                         "actor_location_institution": "Location of the named institution (actor location, not "
+                                                       "necessarily where the activity takes place)",
+                         "city_named": "City named in the headline",
+                         "national_actor": "Union-level actor, no state named", "none": "No state"}
+# Regional grouping for briefs: adapted from the Zonal Councils (States Reorganisation Act 1956).
+# Central Zonal Council members are assigned to the closest of the five requested groups
+# (UP, Uttarakhand, MP -> Northern; Chhattisgarh -> Eastern). A&N and Lakshadweep -> Southern.
+REGION_GROUPS = {
+    "Northern India": ["Delhi", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Ladakh", "Punjab", "Rajasthan",
+                       "Chandigarh", "Uttar Pradesh", "Uttarakhand", "Madhya Pradesh"],
+    "Southern India": ["Andhra Pradesh", "Karnataka", "Kerala", "Tamil Nadu", "Telangana", "Puducherry",
+                       "Lakshadweep", "Andaman and Nicobar Islands"],
+    "Western India": ["Goa", "Gujarat", "Maharashtra", "Dadra and Nagar Haveli and Daman and Diu"],
+    "Eastern India": ["Bihar", "Jharkhand", "Odisha", "West Bengal", "Chhattisgarh"],
+    "Northeastern India": ["Arunachal Pradesh", "Assam", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Sikkim", "Tripura"],
+}
+REGION_OF = {st: g for g, sts in REGION_GROUPS.items() for st in sts}
 REGION_NAMES = [r.name for r in REGIONS]
 REGION_KIND = {r.name: r.kind for r in REGIONS}
 REGION_POINT = {r.name: (r.lat, r.lon) for r in REGIONS}
@@ -54,7 +79,9 @@ TEXT_COLS = ["state", "city", "institutions", "title", "summary", "summary_basis
              "sector", "source_name", "source_url", "url_type", "publisher_url", "source_type", "verification_status",
              "verification_basis", "corroborating_sources", "discovery_sources", "state_evidence", "date_precision",
              "announcement_date_status", "opportunity_type", "deadline_status", "record_id", "cluster_id", "raw_ref",
-             "collected_at", "category_confidence", "stage_cue", "review_status", "review_note", "matched_query"]
+             "collected_at", "category_confidence", "stage_cue", "review_status", "review_note", "matched_query",
+             "states_mentioned", "geographic_scope", "location_basis", "actors", "actor_classes", "actor_levels",
+             "actor_location", "activity_stage", "stage_confidence", "stage_basis"]
 
 
 def _read(name: str) -> pd.DataFrame:
@@ -92,6 +119,14 @@ def clean_records(df: pd.DataFrame) -> pd.DataFrame:
     df["url_label"] = df["url_type"].map(URL_TYPE_LABELS)
     df["stage_cue"] = df["stage_cue"].where(df["stage_cue"] != "", "unclear")
     df["stage_label"] = df["stage_cue"].map(STAGE_LABELS).fillna("Stage unclear")
+    df["activity_stage"] = df["activity_stage"].where(df["activity_stage"] != "", "undetermined")
+    df["activity_stage_label"] = df["activity_stage"].map(ACTIVITY_STAGE_LABELS).fillna("Undetermined")
+    df["geographic_scope"] = df["geographic_scope"].where(df["geographic_scope"] != "", "state")
+    df["scope_label"] = df["geographic_scope"].map(SCOPE_LABELS).fillna("—")
+    df["actor_display"] = df["actors"].str.replace("|", ", ", regex=False)
+    df["actor_class_display"] = df["actor_classes"].map(
+        lambda s: ", ".join(dict.fromkeys(ACTOR_CLASS_LABELS.get(x, x) for x in s.split("|") if x)) or "Not identified")
+    df["region"] = df["state"].map(REGION_OF).fillna("India (national)")
     df["discovery_label"] = df["discovery_sources"].map(
         lambda s: ", ".join(DISCOVERY_LABELS.get(x, x) for x in s.split("|") if x) or "—")
     # A headline is not a summary: only publisher-supplied text is shown as a description.
@@ -102,7 +137,8 @@ def clean_records(df: pd.DataFrame) -> pd.DataFrame:
     df["search_text"] = (df["title"] + " \n " + df["description_full"] + " \n " + df["state"] + " \n " + df["city"]
                          + " \n " + df["institutions"].str.replace("|", " ", regex=False) + " \n " + df["category_label"]
                          + " \n " + df["sector_label"] + " \n " + df["source_name"] + " \n " + df["stage_label"]
-                         + " \n " + df["opportunity_type"].str.replace("_", " ")).str.casefold()
+                         + " \n " + df["opportunity_type"].str.replace("_", " ") + " \n " + df["actor_display"]
+                         + " \n " + df["actor_class_display"] + " \n " + df["scope_label"]).str.casefold()
     return df
 
 
@@ -137,7 +173,9 @@ def load_all() -> dict:
     summary = {}
     if (PROCESSED / "run_summary.json").exists():
         summary = json.loads((PROCESSED / "run_summary.json").read_text())
-    return {"activities": acts, "opportunities": opps, "coverage": _read("state_coverage.csv"),
+    nat = clean_records(_read("national_activities.csv"))
+    return {"activities": acts, "opportunities": opps, "national": nat, "stakeholders": _read("stakeholders.csv"),
+            "coverage": _read("state_coverage.csv"),
             "registry": _read("source_registry.csv"), "duplicates": _read("duplicates.csv"),
             "summary": summary, "geojson": load_geojson()}
 

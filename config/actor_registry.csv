@@ -1,0 +1,42 @@
+name,aliases,actor_class,level,authority_note,official_website
+Ministry of Electronics and Information Technology,MeitY;Ministry of Electronics and IT;Electronics and IT Ministry,union_ministry_department,union,Union ministry,https://www.meity.gov.in
+IndiaAI Mission,IndiaAI;India AI Mission;IndiaAI Mission,public_implementation_agency,union,Implements the IndiaAI Mission under MeitY,https://indiaai.gov.in
+NITI Aayog,NITI,policy_advisory_body,union,Union government policy think tank set up by Cabinet resolution (2015); advisory not regulatory,https://www.niti.gov.in
+Digital India Bhashini Division,Bhashini;BHASHINI,public_implementation_agency,union,Language-technology programme under MeitY,https://bhashini.gov.in
+Ministry of Education,Education Ministry,union_ministry_department,union,Union ministry,https://www.education.gov.in
+Department of Science and Technology,DST,union_ministry_department,union,Union department,https://dst.gov.in
+Ministry of Health and Family Welfare,Health Ministry;MoHFW,union_ministry_department,union,Union ministry,https://mohfw.gov.in
+Indian Council of Medical Research,ICMR,public_research_institution,union,Union public research body,https://www.icmr.gov.in
+Indian Council of Agricultural Research,ICAR,public_research_institution,union,Union public research body,https://icar.org.in
+Telecom Regulatory Authority of India,TRAI,regulator_statutory_authority,union,Statutory regulator under the TRAI Act 1997,https://www.trai.gov.in
+Securities and Exchange Board of India,SEBI,regulator_statutory_authority,union,Statutory regulator under the SEBI Act 1992,https://www.sebi.gov.in
+Reserve Bank of India,RBI,regulator_statutory_authority,union,Central bank constituted under the RBI Act 1934,https://www.rbi.org.in
+Indian Computer Emergency Response Team,CERT-In,regulator_statutory_authority,union,National cyber-incident agency designated under Section 70B of the IT Act 2000,https://www.cert-in.org.in
+All India Council for Technical Education,AICTE,regulator_statutory_authority,union,Statutory body under the AICTE Act 1987,https://www.aicte.gov.in
+University Grants Commission,UGC,regulator_statutory_authority,union,Statutory body under the UGC Act 1956,https://www.ugc.gov.in
+Bureau of Indian Standards,BIS,regulator_statutory_authority,union,National standards body under the BIS Act 2016,https://www.bis.gov.in
+Parliament of India,Parliament;Lok Sabha;Rajya Sabha;parliamentary panel;parliamentary committee;Parliamentary Standing Committee,legislature,union,Union legislature,https://sansad.in
+Supreme Court of India,Supreme Court;SC,judiciary,union,Apex court,https://www.sci.gov.in
+UNESCO,,international_organisation,international,,https://www.unesco.org
+UNDP,,international_organisation,international,,https://www.undp.org
+Observer Research Foundation,ORF,think_tank_civil_society,non_government,,https://www.orfonline.org
+Carnegie India,,think_tank_civil_society,non_government,,https://carnegieindia.org
+Vidhi Centre for Legal Policy,Vidhi,think_tank_civil_society,non_government,,https://vidhilegalpolicy.in
+Internet Freedom Foundation,IFF,think_tank_civil_society,non_government,,https://internetfreedom.in
+Nasscom,NASSCOM,industry_association,non_government,,https://nasscom.in
+OpenAI,,ai_lab_or_technology_company,non_government,,https://openai.com
+Anthropic,,ai_lab_or_technology_company,non_government,,https://www.anthropic.com
+Google,Google DeepMind;Google Cloud,ai_lab_or_technology_company,non_government,,
+Microsoft,,ai_lab_or_technology_company,non_government,,
+Nvidia,NVIDIA,ai_lab_or_technology_company,non_government,,
+Meta,,ai_lab_or_technology_company,non_government,,
+Amazon Web Services,AWS;Amazon,ai_lab_or_technology_company,non_government,,
+IBM,,ai_lab_or_technology_company,non_government,,
+Intel,,ai_lab_or_technology_company,non_government,,
+Sarvam AI,Sarvam,ai_lab_or_technology_company,non_government,,https://www.sarvam.ai
+Infosys,,ai_lab_or_technology_company,non_government,,
+Tata Consultancy Services,TCS,ai_lab_or_technology_company,non_government,,
+Wipro,,ai_lab_or_technology_company,non_government,,
+HCLTech,HCL Tech;HCL Technologies,ai_lab_or_technology_company,non_government,,
+Adani Group,Adani,ai_lab_or_technology_company,non_government,,
+Reliance Industries,Reliance;Jio,ai_lab_or_technology_company,non_government,,

@@ -35,3 +35,27 @@ def test_rulings_approvals_and_partnerships_are_announcements(t, stage):
 def test_acronym_aim_is_not_the_verb_aims():
     assert stage_cue("Kerala's K-AI Initiative: AI For Governance Under Kerala Artificial Intelligence Mission (K-AIM)") == "unclear"
     assert stage_cue("Odisha aims to become an AI hub") == "proposed_or_planned"
+
+
+from src.stage import activity_stage
+
+
+def test_activity_stage_requires_strong_evidence():
+    assert activity_stage("Cabinet approves AI mission", "single_secondary_source", 1)[0] == "undetermined"
+    assert activity_stage("Cabinet approves AI mission", "primary_source", 1)[:2] == ("approved_constituted", "medium")
+    assert activity_stage("Cabinet approves AI mission", "corroborated", 3)[:2] == ("approved_constituted", "low")
+
+
+def test_activity_stage_never_infers_implementation_from_announcement():
+    assert activity_stage("State launches AI policy", "primary_source", 1)[0] == "proposed_announced"
+    assert activity_stage("State plans to deploy AI cameras", "corroborated", 2)[0] == "proposed_announced"
+    assert activity_stage("Police AI cameras go live across city", "corroborated", 2)[0] == "undetermined"  # 'go live' != stated past
+
+
+def test_manual_evidence_overrides():
+    s = activity_stage("x", "unverified", 1, {"activity_stage": "under_implementation", "evidence": "tender notice"})
+    assert s[:2] == ("under_implementation", "high")
+
+
+def test_hyphenated_adjective_is_not_an_approval():
+    assert activity_stage("TRAI proposes board-approved AI policies for telcos", "corroborated", 3)[0] == "proposed_announced"

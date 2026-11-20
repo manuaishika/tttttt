@@ -49,7 +49,10 @@ def validate_record(rec: dict, today: date | None = None) -> list[Issue]:
 
     state = rec.get("state")
     if not _blank(state):
-        if state == S.PAN_INDIA:
+        if state == S.NATIONAL:
+            if rtype != "activity" or rec.get("geographic_scope") != "national":
+                err("state", "'India (national)' is only allowed for national-scope activities")
+        elif state == S.PAN_INDIA:
             if rtype != "opportunity":
                 err("state", "'Pan-India' is only allowed for opportunities")
         elif state not in REGION_BY_NAME:
@@ -80,6 +83,14 @@ def validate_record(rec: dict, today: date | None = None) -> list[Issue]:
     if not ds or any(x not in S.DISCOVERY_SOURCES for x in ds):
         err("discovery_sources", f"must be '|'-separated values from {S.DISCOVERY_SOURCES}")
 
+    if rec.get("geographic_scope") not in S.GEOGRAPHIC_SCOPES:
+        err("geographic_scope", f"must be one of {S.GEOGRAPHIC_SCOPES}")
+    if rec.get("location_basis") not in S.LOCATION_BASES:
+        err("location_basis", f"must be one of {S.LOCATION_BASES}")
+    if rec.get("activity_stage") not in S.ACTIVITY_STAGES:
+        err("activity_stage", f"must be one of {S.ACTIVITY_STAGES}")
+    elif rec.get("activity_stage") != "undetermined" and _blank(rec.get("stage_confidence")):
+        err("stage_confidence", "a determined stage must state its confidence")
     if rec.get("stage_cue") not in S.STAGE_CUES:
         err("stage_cue", f"must be one of {S.STAGE_CUES}")
 

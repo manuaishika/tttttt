@@ -7,7 +7,7 @@ import pytest
 
 st_testing = pytest.importorskip("streamlit.testing.v1")
 APP = str(Path(__file__).resolve().parent.parent / "dashboard" / "app.py")
-SECTIONS = ["Overview", "State Intelligence", "Activity Explorer", "Opportunities", "Methodology"]
+SECTIONS = ["Overview", "State Intelligence", "Activity Explorer", "Opportunities", "Stakeholders", "Methodology"]
 
 
 def _run(**state):
@@ -81,3 +81,18 @@ def test_headline_only_records_have_no_description():
     assert df.loc[0, "description_full"] == ""
     assert df.loc[1, "description_full"].startswith("The centre")
     assert df.loc[1, "url_label"] == "Google News redirect"
+
+
+def test_brief_has_national_and_five_regions_and_handles_empty_windows():
+    at = _run(init=True, nav="Overview", focus_state="—", brief_window="30 days")
+    assert not at.exception
+    text = " ".join(m.value for m in at.markdown)
+    for region in ["India: national developments", "Northern India", "Southern India", "Western India",
+                   "Eastern India", "Northeastern India"]:
+        assert region in text
+    assert "Publication date is not the activity date" in text
+
+
+def test_explorer_actor_and_scope_filters():
+    at = _run(init=True, nav="Activity Explorer", focus_state="—", ax_scope=["national"], ax_actor=["judiciary"])
+    assert not at.exception
