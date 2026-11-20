@@ -45,6 +45,10 @@ Rejected items go to `excluded_records.csv` with a reason: `not_ai_related`, `st
 ## 6. Classification
 Transparent weighted keyword rules (`src/classify.py`), scored on the headline with the description as fallback; strongest rule counts fully, others half; documented tie-break precedence; `category_confidence` from score and margin. **Opportunity** = a type word (fellowship, internship, workshop, hackathon, conference, summer school, free online training…) plus a forward-looking cue (applications open, apply by, eligibility, to host…); award stories and past events are activities.
 
+**Stage cue.** Each record also carries `stage_cue` (proposed/planned, announced/approved, implemented/in operation, unclear) read from the headline's verbs only (`src/stage.py`; e.g. "plans to", "approves", "rolls out"). It separates plans from announcements from things reported as running; it is not a maturity assessment.
+
+**Opportunity review.** The 15 opportunities were reviewed manually on 2026-11-20; the result is a dated annotation in `config/opportunity_review.csv` (12 valid, 1 borderline, 2 not an opportunity), joined as `review_status`/`review_note`. No record is removed.
+
 ## 7. Deduplication
 1. URLs are canonicalised (host, tracking parameters, AMP/mobile variants), and exact repeats across queries and channels collapse first. These are logged and never count as corroboration.
 2. Within a state, headlines are normalised and linked when rapidfuzz `token_set_ratio ≥ 82`, `token_sort_ratio ≥ 65`, ≥3 shared tokens, ≤21 days apart.
@@ -70,5 +74,5 @@ This is support in the sources held, **not a fact-check**; no record is manually
 ## 10. Geography and map
 Coordinates are set only from the project's institution registry (47 entries, approximate campus locations) or city table, and only when consistent with the record's state; otherwise records are state-level. State boundaries come from a community dataset (udit-001/india-maps-data, pinned commit `2884453`, SHA-256 checked) dissolved to 36 states/UTs and validated against canonical names; it shows India's official external boundary but is not a Survey of India product. If the asset fails validation, the map falls back to labelled approximate points.
 
-## 11. Search
-Keyword search over headlines, publisher descriptions, institutions, sources and places, combined with state, category, sector, evidence and date filters. Records carry stable `record_id`s so semantic/hybrid retrieval can be added later without schema changes; it is not built.
+## 11. Dashboard and search
+Five sections: **Overview** (map of reporting volume, category breadth or well-sourced records, with a selected-state panel), **State Intelligence** (activity by area and stage, records, institutions and publishers), **Activity Explorer**, **Opportunities** (grouped by review status; deadline status only from stated dates, as of the collection date) and **Methodology** (registry, coverage, downloads). Explorer search requires every word to appear (AND), case-insensitive, across headline, publisher description, state, city, institutions, category, sector, stage and publisher; "quoted phrases" match exactly. Each record opens a detail view with its full provenance, including the reports merged into it. Records carry stable `record_id`s so semantic/hybrid retrieval can be added later without schema changes; it is not built.

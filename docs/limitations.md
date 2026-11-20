@@ -8,6 +8,7 @@ Figures refer to the current dataset (collected 2026-11-20): 864 activity record
 - **Redirect links.** 794 records link via `news.google.com` redirects (labelled `google_news_redirect`); the original publisher URL is not stored for these. Direct links exist for 85.
 - **No event dates.** Only publication dates are known; `announcement_date` is `not_determined` everywhere. Trends are by publication month.
 - **One state per record.** Multi-state stories are assigned to one state; others are noted in `state_evidence`.
+- **Stage cues read headline verbs only** (proposed / announced / implemented / unclear; 305 records unclear). A headline saying "launches" may describe a ceremony rather than a running service; the label is not a maturity assessment.
 - **Classification is keyword-based** and unevaluated against a labelled set. Manual audits of samples, not measured precision/recall, guided the rules. Known misses: headlines naming only a politician (e.g. a chief minister by name), and reworded duplicates that stay separate.
 
 ## News APIs
@@ -16,7 +17,7 @@ Figures refer to the current dataset (collected 2026-11-20): 864 activity record
 - **API-only records are noisier.** A manual read of all 60 API-only records judged about 40 relevant (about 34 clearly), against noticeably higher precision for RSS records. The rest are mainly corporate, private-college or event stories that still pass the rules.
 
 ## Opportunities
-- 15 records, of which a manual check judged **12 valid**, 1 borderline (public access to a summit expo) and 2 not genuine openings (a summit report; a PR conference mentioning AI). They remain in the file, unflagged by the pipeline.
+- 15 records. A manual review (2026-11-20, `config/opportunity_review.csv`) labelled **12 valid**, 1 borderline (public access to a summit expo) and 2 not genuine openings (a summit report; a PR conference mentioning AI). They stay in the file with `review_status`; the dashboard separates them. New opportunities from future runs show as `not_reviewed` until reviewed.
 - Opportunities come from news, not organiser websites. Coverage is a sample, not a directory; deadlines are shown only when stated, and many listings have closed.
 
 ## Coverage bias
@@ -30,4 +31,4 @@ Figures refer to the current dataset (collected 2026-11-20): 864 activity record
 - The institution registry has 47 hand-entered entries with approximate coordinates, so hotspots cover only registry institutions and 27 cities.
 - Source-type lists are judgement calls.
 - **Not implemented:** state-level 0–3 assessment scores, gap/recommendation analysis, semantic or multilingual search, portal scrapers.
-- The live deployment depends on the hosting account (see README).
+- On narrow phone screens the map has blank space above and below it (Plotly keeps India's aspect ratio at a fixed height).

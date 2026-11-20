@@ -4,14 +4,14 @@ A Python pipeline and Streamlit dashboard that track **AI policy and government 
 
 Records are collected from news and official feeds, normalised, deduplicated across outlets, and labelled with **how strongly each is sourced**. Absence of evidence is never shown as absence of activity.
 
-**Live dashboard:** _not deployed yet_ — see [Deploy](#deploy).
+**Live dashboard:** https://worktest.streamlit.app
 
 ## Features
 - Discovery across all 28 states and 8 UTs (Google News RSS, direct government and publisher feeds, optional GNews and NewsAPI)
 - State/date normalisation, transparent inclusion rules, cross-outlet deduplication with an audit trail
 - Provenance on every record: evidence status, link type (direct vs Google redirect), discovery channel, raw snapshot reference
 - Separate datasets for **activities** and **opportunities**
-- Dashboard: clickable India map, state profiles, filters, search, trends, institutions and sources, opportunities
+- Dashboard in five sections: **Overview** (clickable India map + selected-state panel), **State Intelligence**, **Activity Explorer** (all-words search, filters, record detail with provenance), **Opportunities** (manually reviewed), **Methodology** (sources, coverage, downloads)
 
 ## Data (`data/processed/`)
 | File | Contents |

@@ -34,3 +34,9 @@ def test_provenance_labels_are_consistent(out):
         assert (df.loc[ho, "summary"] == df.loc[ho, "title"]).all()
         assert (df["announcement_date_status"] == "not_determined").all()
         assert df["record_id"].is_unique
+
+
+def test_stage_cue_and_opportunity_review_present(out):
+    from src.schema import REVIEW_STATUSES, STAGE_CUES
+    assert out["a"]["stage_cue"].isin(STAGE_CUES).all()
+    assert out["o"]["review_status"].isin(REVIEW_STATUSES).all()
