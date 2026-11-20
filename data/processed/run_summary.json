@@ -1,0 +1,30 @@
+{
+  "run_date": "2026-11-20",
+  "raw_file": "data/raw/2026-11-20/20261120T074546Z.jsonl",
+  "raw_entries": 5662,
+  "exact_url_repeats_collapsed": 675,
+  "screened_candidates": 1081,
+  "after_dedup_records": 830,
+  "published_activities": 811,
+  "published_opportunities": 19,
+  "excluded": 4581,
+  "exclusion_reasons": {
+    "no_category_match": 395,
+    "state_not_in_text": 770,
+    "not_ai_related": 2303,
+    "market_or_product_news": 12,
+    "no_public_actor": 185,
+    "opinion_or_commentary": 10,
+    "crime_or_scam_story": 22,
+    "no_state_anchor": 209,
+    "exact_url_repeat": 675
+  },
+  "validation_warnings": 0,
+  "verification_status": {
+    "single_secondary_source": 522,
+    "unverified": 166,
+    "corroborated": 99,
+    "primary_source": 43
+  },
+  "states_with_records": 34
+}
