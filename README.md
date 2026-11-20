@@ -1,63 +1,48 @@
 # India AI Policy Tracker
 
-An intelligence and landscape-mapping system for **India's AI ecosystem, with particular attention to AI governance and AI safety**: who is acting (Union and state bodies, regulators, courts, institutions, labs), what they are doing, where, at what stage, and on what evidence. News and official feeds are the discovery channel, not the object of measurement.
+A research project mapping India's AI ecosystem, with particular attention to AI governance, AI safety, research institutions and government activity.
 
-Records are collected from news and official feeds, normalised, deduplicated across outlets, and labelled with **how strongly each is sourced**. Absence of evidence is never shown as absence of activity.
+The project examines who is undertaking AI-related initiatives, what actions are being proposed or implemented, where these developments are taking place, and what evidence is available.
+
+Rather than treating news coverage as the outcome, the project uses public reporting, government sources and institutional publications to identify and organise meaningful ecosystem developments.
+
+## Research scope
+
+The collection covers six areas:
+
+- AI policy and governance
+- AI safety and responsible AI
+- Research and institutional development
+- Public-sector deployment and infrastructure
+- Partnerships and investment
+- Education, fellowships and opportunities
+
+Coverage was initially designed across all 28 Indian states and 8 union territories.
+
+## What the project contains
+
+- An interactive India map and state profiles.
+- Searchable records with source and evidence information.
+- National and state-level activity datasets.
+- An institutional stakeholder directory.
+- A separate opportunities dataset.
+- Source, exclusion and deduplication records.
 
 **Live dashboard:** https://worktest.streamlit.app
 
-## Features
-- Discovery across all 28 states and 8 UTs (Google News RSS, direct government and publisher feeds, optional GNews and NewsAPI)
-- State/date normalisation, transparent inclusion rules, cross-outlet deduplication with an audit trail
-- Provenance on every record: evidence status, link type (direct vs Google redirect), discovery channel, raw snapshot reference
-- Separate datasets for **activities** and **opportunities**
-- Actor identification (identity kept apart from legal authority), activity vs actor location and geographic scope, and an evidence-gated lifecycle stage
-- Dashboard in six sections: **Overview** (clickable India map, selected-state panel, India AI Intelligence Brief by region), **State Intelligence**, **Activity Explorer** (all-words search, filters, record detail with provenance), **Opportunities** (manually reviewed), **Stakeholders** (registry-backed institutional directory), **Methodology**
+**GitHub repository:** https://github.com/manuaishika/tttttt
 
-## Data (`data/processed/`)
-| File | Contents |
-|---|---|
-| `activities.csv`, `opportunities.csv` | State-level activities and opportunities (also in `ai_policy_activity.xlsx`) |
-| `national_activities.csv` | National-scope activities by Union bodies, regulators, Parliament and the Supreme Court |
-| `stakeholders.csv` | Registry-backed organisations named in records, with linked evidence and checked official websites |
-| `excluded_records.csv` | Every rejected item with its reason |
-| `duplicates.csv` | Which reports were merged into each record |
-| `source_registry.csv`, `state_coverage.csv`, `run_summary.json` | Sources, per-state research coverage, run counts |
+## Research outputs
 
-Current dataset (collected 2026-11-20): **878 state-level activities across 34 of 36 states/UTs, 25 national-scope activities, 15 opportunities, 49 stakeholder organisations**.
+The repository includes the processed activity and opportunity datasets, national-level records, stakeholder information, source registry, state coverage data and audit files.
 
-## Install
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
+The collection distinguishes between announcements, implementation cues and unclear cases. It also distinguishes evidence strength from factual certainty.
 
-## Run
-```bash
-streamlit run dashboard/app.py          # dashboard on the committed data
-pytest -q                               # tests
-python -m src.pipeline                  # rebuild datasets from all raw snapshots
-python -m src.collect                   # collect a fresh RSS snapshot
-python -m src.collect --no-rss --apis gnews newsapi   # optional API discovery
-python -m src.enrich_opportunities      # optional: read opportunity articles for deadlines/details (network)
-```
-API keys are optional. Copy `.env.example` to `.env` and set `GNEWS_API_KEY` / `NEWSAPI_KEY`; without them the RSS pipeline runs as normal. Never commit `.env`.
+## Methodology and limitations
 
-## Deploy
-Streamlit Community Cloud (free): sign in at share.streamlit.io with GitHub → *New app* → this repository and branch → main file `dashboard/app.py`. No secrets are needed, because the app reads the committed datasets.
+The accompanying documents explain the source-selection process, collection methodology, classification decisions, geographic attribution, verification approach and limitations.
 
-## Repository
-```
-src/            collect, connectors/ (gnews, newsapi), normalize, classify, deduplicate, validate, sources, pipeline
-dashboard/      app.py, data.py, assets/india_states.geojson
-data/raw/       immutable snapshots + fetch logs      data/processed/  published datasets
-scripts/        build_boundaries.py (rebuilds the map asset)
-docs/           methodology.md, limitations.md
-tests/          pytest suite
-```
+- [Methodology](docs/methodology.md)
+- [Limitations](docs/limitations.md)
 
-## Documentation
-- [Methodology](docs/methodology.md): sources, taxonomy, state prioritisation, classification, verification, deduplication
-- [Limitations](docs/limitations.md): coverage gaps, data caveats, unresolved issues
-
-Built with an AI coding assistant (Claude), as the assignment expects.
+The collection is not a comprehensive census of India's AI ecosystem. Coverage varies across sources and regions, and the presence or absence of a published record should not be interpreted as proof of actual ecosystem activity or inactivity.
