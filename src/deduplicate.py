@@ -89,6 +89,39 @@ def cluster(items: list[dict], threshold: int = 82, window_days: int = 21, min_s
     return [uf.find(i) for i in range(n)]
 
 
+_GENERIC = set("""ai artificial intelligence india indian national state government students student
+research safety responsible fellowship fellowships internship internships scholarship workshop conference
+summit hackathon programme program programmes launch launches launched opens open offers apply applications
+registration registrations 2025 2026 2027 lakh crore get up build project projects study want pursue paid
+offer financial aid check eligibility partners partnered nationwide virtual engineering learning""".split())
+
+
+def link_opportunities(items: list[dict], labels: list[int], window_days: int = 45) -> list[int]:
+    """Second pass for opportunities only: they are NAMED programmes, so different outlets'
+    headlines about one programme vary a lot ("IndiaAI Fellowship 2026: Can students get
+    paid..." vs "Want to study AI? IndiaAI Fellowship offers..."). Merge two opportunities of
+    the same type and state within the window if they share a distinctive (non-generic, 4+
+    char) name token such as 'indiaai' or 'aicte'. Generic words never link programmes, so
+    'Anthropic ... AI safety fellowship' and 'OpenAI ... AI safety fellowship' stay apart."""
+    uf = _UF(len(items))
+    for i, lab in enumerate(labels):
+        uf.union(i, lab)
+    opp = [i for i, it in enumerate(items) if it.get("record_type") == "opportunity"]
+    for a_pos, i in enumerate(opp):
+        ti = {w for w in items[i]["norm_title"].split() if len(w) >= 4 and w not in _GENERIC}
+        for j in opp[a_pos + 1:]:
+            a, b = items[i], items[j]
+            if a["state"] != b["state"] or a.get("opportunity_type") != b.get("opportunity_type"):
+                continue
+            gap = _days(a["published_date"], b["published_date"])
+            if gap is not None and gap > window_days:
+                continue
+            tj = {w for w in b["norm_title"].split() if len(w) >= 4 and w not in _GENERIC}
+            if ti & tj:
+                uf.union(i, j)
+    return [uf.find(i) for i in range(len(items))]
+
+
 def pick_canonical(members: list[dict]) -> dict:
     """Most authoritative tier, then a direct publisher URL over a Google News redirect, then
     one with a publisher description, then earliest date (ISO strings sort correctly)."""

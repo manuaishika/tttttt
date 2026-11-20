@@ -1,30 +1,73 @@
 {
   "run_date": "2026-11-20",
-  "raw_file": "data/raw/2026-11-20/20261120T074546Z.jsonl",
-  "raw_entries": 5662,
-  "exact_url_repeats_collapsed": 675,
-  "screened_candidates": 1081,
-  "after_dedup_records": 830,
-  "published_activities": 811,
-  "published_opportunities": 19,
-  "excluded": 4581,
+  "raw_files": [
+    "data/raw/2026-11-20/20261120T074546Z.jsonl",
+    "data/raw/2026-11-20/20261120T081453Z_gnews.jsonl",
+    "data/raw/2026-11-20/20261120T081639Z_newsapi.jsonl"
+  ],
+  "raw_entries": 8479,
+  "exact_url_repeats_collapsed": 716,
+  "screened_candidates": 1178,
+  "after_dedup_records": 879,
+  "published_activities": 864,
+  "published_opportunities": 15,
+  "excluded": 7301,
   "exclusion_reasons": {
-    "no_category_match": 395,
-    "state_not_in_text": 770,
-    "not_ai_related": 2303,
-    "market_or_product_news": 12,
-    "no_public_actor": 185,
-    "opinion_or_commentary": 10,
-    "crime_or_scam_story": 22,
-    "no_state_anchor": 209,
-    "exact_url_repeat": 675
+    "no_category_match": 467,
+    "state_not_in_text": 850,
+    "not_ai_related": 4707,
+    "market_or_product_news": 14,
+    "no_public_actor": 207,
+    "opinion_or_commentary": 13,
+    "commentary_or_profile": 22,
+    "crime_or_scam_story": 47,
+    "no_state_anchor": 258,
+    "exact_url_repeat": 716
   },
   "validation_warnings": 0,
   "verification_status": {
-    "single_secondary_source": 522,
-    "unverified": 166,
-    "corroborated": 99,
+    "single_secondary_source": 561,
+    "unverified": 155,
+    "corroborated": 120,
     "primary_source": 43
   },
-  "states_with_records": 34
+  "states_with_records": 34,
+  "url_type": {
+    "publisher_direct": 85,
+    "google_news_redirect": 794
+  },
+  "summary_basis": {
+    "publisher_description": 86,
+    "headline_only": 793
+  },
+  "by_discovery_source": {
+    "google_news_rss": {
+      "raw_items": 5228,
+      "candidates_after_url_collapse": 1072,
+      "published_records_contributed_to": 816,
+      "published_records_found_only_by_this_source": 793,
+      "records_failing_validation": 0
+    },
+    "direct_feed": {
+      "raw_items": 434,
+      "candidates_after_url_collapse": 4,
+      "published_records_contributed_to": 4,
+      "published_records_found_only_by_this_source": 3,
+      "records_failing_validation": 0
+    },
+    "gnews": {
+      "raw_items": 272,
+      "candidates_after_url_collapse": 78,
+      "published_records_contributed_to": 59,
+      "published_records_found_only_by_this_source": 39,
+      "records_failing_validation": 0
+    },
+    "newsapi": {
+      "raw_items": 2545,
+      "candidates_after_url_collapse": 24,
+      "published_records_contributed_to": 23,
+      "published_records_found_only_by_this_source": 21,
+      "records_failing_validation": 0
+    }
+  }
 }

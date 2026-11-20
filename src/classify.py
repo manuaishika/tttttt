@@ -13,7 +13,7 @@ INCLUSION CRITERIA (all must hold)  -> "how we drew the line"
   4. Activity cue: at least one taxonomy rule fires (an announcement, deployment,
      partnership, research launch, safety/ethics move, or opportunity).
 EXCLUSIONS (each has a reason code): not_ai_related, opinion_or_commentary,
-  crime_or_scam_story, market_or_product_news, no_public_actor, no_category_match,
+  crime_or_scam_story, commentary_or_profile, market_or_product_news, no_public_actor, no_category_match,
   state_not_in_text (query hint only), no_state_anchor.
 """
 from __future__ import annotations
@@ -112,13 +112,13 @@ _SECTOR_C = {k: re.compile(v, _I) for k, v in SECTOR_RULES.items()}
 _OPP_TYPE = [
     ("fellowship", r"\bfellowships?\b"), ("internship", r"\binternships?\b"),
     ("scholarship", r"\bscholarships?\b"), ("competition", r"\b(hackathon|competition|challenge|contest)s?\b"),
-    ("research_programme", r"\b(summer school|winter (school|training)|research programme|research program|bootcamp|training programme|certificate course|residency|residential (programme|program)|short[- ]term (course|programme|program))\b"),
+    ("research_programme", r"\b(summer school|winter (school|training)|research programme|research program|bootcamp|training programme|certificate course|residency|residential (programme|program)|short[- ]term (course|programme|program)|free (online )?(training|course)s?)\b"),
     ("workshop", r"\bworkshops?\b"), ("conference", r"\b(conference|summit|symposium|seminar)s?\b"),
 ]
 _OPP_FORWARD = re.compile(
     r"\b(applications?\s+(are\s+)?(open|invited)|apply\s+(now|by|before|today)|call for (applications|proposals|papers|nominations)|"
     r"registrations?\s+(are\s+)?open|register\s+(now|by|before)|invites?\s+applications|invites?\s+(students|researchers|youth)|"
-    r"last date|deadline|open to (all )?(students|researchers|graduates)|enrol\w*\s+(now|open)|eligibility|how to apply|"
+    r"last date|deadline|open to (all )?(students|researchers|graduates)|enrol\w*\s+(now|open)|eligibility|how to apply|check details|"
     r"get paid|financial aid|up to (rs\.?|₹|inr)\s?[\d,]+|applications\b|application (form|deadline|window|process)|opens? (for|applications)|"
     r"(will|to)\s+(host|organi[sz]e|conduct)|upcoming|calls? for)\b", _I)
 _AWARD = re.compile(r"\b(wins?|won|bags?|bagged|awarded|selected|becomes|conferred|felicitated)\b", _I)
@@ -129,7 +129,7 @@ _DEADLINE = re.compile(
 
 # ------------------------------------------------------------- exclusions ---
 _OPINION = re.compile(r"^\s*(opinion|editorial|column|letters?|podcast|watch|video|photos?|in pics|quiz)\b\s*[:|\-–—]?", _I)
-_CRIME = re.compile(r"\b(arrest\w*|fraud\w*|scam\w*|duped|cheat\w*|FIR|murder\w*|killed|suicide|accident|crash\w*|extort\w*|blackmail\w*|cyber ?crime|rape|harass\w*|obscene|morphed)\b", _I)
+_CRIME = re.compile(r"\b(arrest\w*|fraud\w*|scam\w*|duped|cheat\w*|FIR|murder\w*|kill(s|ed|ing)?|deaths?|died|hooch|racket\w*|complaint (filed|against|lodged)|police complaint|alleg\w+|suicide|accident|crash\w*|extort\w*|blackmail\w*|cyber ?crime|rape|harass\w*|obscene|morphed)\b", _I)
 _MARKET = re.compile(r"\b(shares?|stocks?|sensex|nifty|ipo|quarterly|q[1-4] (results|earnings)|earnings|smartphones?|price (cut|hike)|stock price|market cap|valuation|raises? \$|series [a-d]\b|unicorn|layoffs?|stake|revenue growth|iphone|samsung|launch(es)? (the )?(new )?\w+ (phone|laptop|tv))\b", _I)
 _PUBLIC_ACTOR = re.compile(
     r"\b(government|govt|governor|minister|ministry|cabinet|chief minister|\bcm\b|state|department|directorate|"
@@ -141,6 +141,17 @@ _PUBLIC_ACTOR = re.compile(
 
 
 _INVEST_CUE = re.compile(r"\b(data ?cent(er|re)s?|ai (hub|city|campus|park|factory)|gigawatt|\d+\s?(mw|gw)|billion|lakh crore|crore)\b", _I)
+
+
+# Statements, talks and profiles are not activities unless a government body is the speaker.
+_COMMENTARY = re.compile(
+    r"\b(says?|said|say experts|urges?|calls? for|should|must|opines?|journey|who is|goes viral|viral|"
+    r"new book|book on|convocation|in conversation|interview|explained|explainer|column)\b", _I)
+_GOVT_ACTOR = re.compile(r"\b(govt|government|cabinet|cm|chief minister|ministers?|ministry|department|police|"
+                         r"mission|policy|collector|commission|assembly|state|secretary|governor|guv|hc|high court|"
+                         r"supreme court|court|judges?|mla|mp|mayor|corporation|council)\b", _I)
+_ACTIVITY_VERB = re.compile(r"\b(launch\w*|inaugurat\w*|introduc\w*|sets? up|set to|approv\w*|signs?|signed|inks?|"
+                            r"rolls? out|unveil\w*|announc\w*|establish\w*|deploy\w*|opens?|starts?|grants?)\b", _I)
 
 
 @dataclass
@@ -206,12 +217,20 @@ def detect_opportunity(text: str, ref_date: date | None = None) -> tuple[str | N
     return otype, deadline, None
 
 
-def classify(text: str, ref_date: date | None = None) -> Classification:
+def classify(text: str, ref_date: date | None = None, context: str = "") -> Classification:
+    """Classify a headline. `context` (a publisher description) is used only as a fallback when
+    the headline alone matches no category, and for opportunity cues/deadlines - so records
+    from channels that supply descriptions (APIs) are judged by the same headline-first
+    standard as RSS items, which only have headlines."""
     scores, fired = score_categories(text)
+    if context and max(scores.values()) <= 0:
+        scores, fired = score_categories(f"{text}. {context}")
     ranked = sorted(scores.items(), key=lambda kv: (-kv[1], TIE_PRECEDENCE.index(kv[0])))
     (top, s1), (_, s2) = ranked[0], ranked[1]
     sector = detect_sector(text)
     otype, deadline, _ = detect_opportunity(text, ref_date)
+    if not otype and context and any(re.search(p, text, _I) for _, p in _OPP_TYPE):
+        otype, deadline, _ = detect_opportunity(f"{text}. {context}", ref_date)   # type word in headline, cue in description
     margin = s1 - s2
     conf = "high" if (s1 >= 3 and margin >= 2) else "medium" if (s1 >= 2 and margin >= 1) else "low"
     if otype:   # type word + forward-looking cue: an opening someone can apply to / attend
@@ -223,9 +242,9 @@ def classify(text: str, ref_date: date | None = None) -> Classification:
 
 
 def screen(title: str, description: str) -> tuple[bool, str]:
-    """Pre-state inclusion screen on text alone. Returns (keep, reason_code)."""
-    text = f"{title}. {description}".strip()
-    if not is_ai_related(text):
+    """Pre-state inclusion screen. AI relevance is judged on the HEADLINE, for every channel:
+    a passing mention of AI in a description does not make a story about AI."""
+    if not is_ai_related(title):
         return False, "not_ai_related"
     if _OPINION.search(title):
         return False, "opinion_or_commentary"
@@ -249,6 +268,9 @@ def screen_after_classification(title: str, description: str, c: Classification,
     strong = max(c.scores.values()) >= 3
     if _CRIME.search(title) and not (strong and c.category in ("policy_governance", "research_institutions", "education_opportunities")):
         return False, "crime_or_scam_story"
+    if (_COMMENTARY.search(title) and not _GOVT_ACTOR.search(title) and not _ACTIVITY_VERB.search(title)
+            and c.record_type != "opportunity"):
+        return False, "commentary_or_profile"
     if _MARKET.search(title) and c.category not in ("policy_governance",):
         return False, "market_or_product_news"
     # Openings for students are valuable whoever runs them; state-level AI infrastructure

@@ -65,3 +65,20 @@ def test_canonical_prefers_direct_url_over_google_redirect_within_tier():
     gov = {"source_type": "government", "url_type": "google_news_redirect", "published_date": "2026-05-03", "has_description": False}
     assert pick_canonical([g, d]) is d
     assert pick_canonical([g, d, gov]) is gov   # authority still comes first
+
+
+def _opp(title, otype="fellowship", state="Pan-India", d="2026-10-20"):
+    x = it(title, state=state, d=d)
+    x.update(record_type="opportunity", opportunity_type=otype)
+    return x
+
+
+def test_named_programme_reports_merge_but_different_programmes_do_not():
+    from src.deduplicate import link_opportunities
+    items = [_opp("IndiaAI Fellowship 2026: Can Students Get Paid to Build AI Projects?"),
+             _opp("Want To Study AI? IndiaAI Fellowship Offers Students Up to Rs 2 Lakh, Check Eligibility", d="2026-10-17"),
+             _opp("Anthropic opens AI Safety Fellowship, apply by April 26"),
+             _opp("OpenAI Launches Fellowship to Fund External AI Safety Research")]
+    labels = link_opportunities(items, cluster(items))
+    assert labels[0] == labels[1]
+    assert len({labels[0], labels[2], labels[3]}) == 3

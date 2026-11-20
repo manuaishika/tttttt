@@ -24,7 +24,7 @@ import pandas as pd
 from . import schema as S
 from .classify import (classify, screen, screen_after_classification, state_is_subject)
 from .collect import ROOT, collect, load_config
-from .deduplicate import canonical_url, cluster, normalize_title, pick_canonical
+from .deduplicate import canonical_url, cluster, link_opportunities, normalize_title, pick_canonical
 from .normalize import (city_coords, extract_cities, extract_institutions, extract_states, normalize_date)
 from .reference import REGIONS, REGION_BY_NAME
 from .sources import TIER, check_reachability, classify_source, domain_of, verification_for
@@ -79,9 +79,23 @@ def url_type_of(link: str) -> str:
 
 
 def assign_state(title: str, desc: str, hint: str | None) -> dict | None:
-    """Decide the state from the TEXT first, then institutions, then cities.
+    """Decide the state from the HEADLINE first (state names, then institutions, then cities),
+    and only fall back to the description when the headline has no anchor at all.
     The query's state is NOT evidence on its own (a Kerala query can return a Gujarat story)."""
-    text = f"{title}. {desc}"
+    for text, where in ((title, "headline"), (f"{title}. {desc}", "description")):
+        if not text.strip():
+            continue
+        found = _anchor(text, hint)
+        if found:
+            if where == "description":
+                found["evidence"] += " [from publisher description]"
+            return found
+        if not desc:
+            break
+    return None
+
+
+def _anchor(text: str, hint: str | None) -> dict | None:
     states = extract_states(text)
     insts = extract_institutions(text)
     cities = extract_cities(text)
@@ -145,7 +159,7 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
         ok, reason = screen(title, desc)
         if not ok:
             exclude(e, reason, title); continue
-        c = classify(f"{title}. {desc}", date.fromisoformat(d.iso) if d.iso else None)
+        c = classify(title, date.fromisoformat(d.iso) if d.iso else None, context=desc)
         st = assign_state(title, desc, e.get("hint_state"))
         pan_india = False
         if st is None:
@@ -201,8 +215,9 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
     cands = list(first_by_url.values())
 
     # ---- deduplicate across outlets -------------------------------------------------
-    labels = cluster([{"state": c["state"], "norm_title": c["norm_title"],
-                       "published_date": c["published_date"], "url": c["url"]} for c in cands])
+    items = [{"state": c["state"], "norm_title": c["norm_title"], "published_date": c["published_date"],
+              "url": c["url"], "record_type": c["record_type"], "opportunity_type": c["opportunity_type"]} for c in cands]
+    labels = link_opportunities(items, cluster(items))
     groups: dict[int, list[dict]] = defaultdict(list)
     for c, lab in zip(cands, labels):
         groups[lab].append(c)

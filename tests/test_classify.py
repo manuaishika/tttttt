@@ -68,3 +68,45 @@ def test_deadline_without_year_resolved_against_publication_date():
 def test_loose_cues_do_not_make_an_opportunity():
     assert classify("Rajasthan's successful application of AI in governance makes waves at conference in Seoul").record_type == "activity"
     assert classify("Himachal plans MBBS internship stipend hike, AI push in medical education").record_type == "activity"
+
+
+def test_ai_must_be_in_headline_for_every_channel():
+    # A passing AI mention in a description must not admit an unrelated story.
+    assert screen("Passengers wait 12 hours as railway stations see festive rush", "Officials say AI cameras were used")[1] == "not_ai_related"
+    assert screen("Telangana rolls out AI cameras on highways", "")[0]
+
+
+def test_description_only_used_as_fallback_for_category():
+    c = classify("Kerala cabinet approves AI mission", context="Students and schools will take part in workshops")
+    assert c.category == "policy_governance"
+
+
+def test_crime_terms_extended():
+    t = "Madhya Pradesh man uses AI to make spurious liquor, 13 deaths suspected"
+    assert not screen_after_classification(t, "", classify(t))[0]
+
+
+def test_free_online_training_is_an_opportunity():
+    assert classify("IIT Madras Pravartak offers free online training in AI for students; check details").record_type == "opportunity"
+
+
+@pytest.mark.parametrize("t,keep", [
+    ("AI should help disabled students learn science, say experts at Bengaluru tech summit", False),
+    ("Who is Tejesh Vaish? IIT Kanpur grad's journey to the AI industry", False),
+    ("Want to make Vizag AI data centre hub, says Andhra CM N Chandrababu Naidu", True),   # govt speaker
+    ("Tripura CM launches AI-based complaint system for Agartala", True),                  # not a crime story
+])
+def test_commentary_and_complaint_rules(t, keep):
+    c = classify(t)
+    ok = screen_after_classification(t, "", c, state_subject=True)[0]
+    assert ok is keep
+
+
+@pytest.mark.parametrize("t", [
+    "Karnataka working towards AI-integrated governance, says Chief Secretary",
+    "Karnataka aims to lead in responsible AI, to train 5 lakh graduates annually in AI, say Ministers",
+    "Gujarat HC calls for strict compliance with deepfake rules",
+    "Will introduce AI learning in Punjab schools, says Harjot Bains",
+])
+def test_government_statements_are_not_dropped_as_commentary(t):
+    assert screen_after_classification(t, "", classify(t), state_subject=True)[1] != "commentary_or_profile"
