@@ -31,6 +31,11 @@ Figures refer to the current dataset (collected 2026-11-20): 878 state-level act
 - 15 records. A manual review (2026-11-20, `config/opportunity_review.csv`) labelled **12 valid**, 1 borderline (public access to a summit expo) and 2 not genuine openings (a summit report; a PR conference mentioning AI). They stay in the file with `review_status`; the dashboard separates them. New opportunities from future runs show as `not_reviewed` until reviewed.
 - Opportunities come from news, not organiser websites. Coverage is a sample, not a directory; deadlines are shown only when stated, and many listings have closed.
 
+## Opportunity details
+- Checked 15 opportunities on 2026-11-20: **2 deadlines extracted with evidence** (IIT Roorkee, 29 Nov 2026, from a reviewer-supplied excerpt because Education Times' robots.txt disallows AI agents; UP AI Kaushal Hackathon, 20 Nov 2026, from two publisher pages, agreeing with its headline), **1 article read with no deadline** (Bennett summit report), **12 not verifiable**: only a Google News redirect was available, its token is not decoded, and the records are older than the news APIs' ~30-day window or not indexed by them. One of these (Anthropic fellowship) still shows the deadline stated in its headline, labelled as not verified against the article.
+- Programme dates, eligibility, fees and mode are evidence sentences, not structured values; the application-URL heuristic can miss links.
+- Reviewer-supplied excerpts are trusted as quoted; they carry the reviewer and date.
+
 ## Coverage bias
 - English-language news only; regional-language media and state portals are largely invisible. States with more English coverage look more active. **Counts are not a ranking.**
 - Dadra & Nagar Haveli and Daman & Diu and Lakshadweep have no records; that is an information gap, not evidence of no activity.

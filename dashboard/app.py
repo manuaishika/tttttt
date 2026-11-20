@@ -23,7 +23,8 @@ from dashboard.data import (ACTIVITY_STAGE_LABELS, ACTOR_CLASS_LABELS, CATEGORY_
                             file_bytes, load_all, search_mask)
 from dashboard.ui import (BLUE, CSS, INK2, MAP_METRICS, RULE, brief_item_html, build_map, category_table_html, esc,  # noqa: E402
                           hbar, hotspots, record_browser, record_row_html, render_detail, select_callback,
-                          state_metrics, stats_html)
+                          deadline_display, selected_points, state_metrics, stats_html)
+from functools import partial  # noqa: E402
 
 st.set_page_config(page_title="India AI Policy & Ecosystem Intelligence", page_icon="🗺️", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -76,6 +77,57 @@ def go_to(section: str, state: str | None = None) -> None:
 
 def set_focus_from(widget_key: str) -> None:
     ss.focus_state = ss[widget_key]
+
+
+EXPLORER_KEYS = ("ax_q", "ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link", "ax_dates", "ax_actor",
+                 "ax_scope", "ax_astage")
+
+
+def explorer_defaults() -> dict:
+    """Explicit empty values for every Explorer widget. Widgets must be SET to these (not popped):
+    a popped key leaves the old value in the browser, which is re-sent on the next interaction."""
+    d0, d1 = ALL["published"].min().date(), ALL["published"].max().date()
+    return {k: ("" if k == "ax_q" else (d0, d1) if k == "ax_dates" else []) for k in EXPLORER_KEYS}
+
+
+def drill_seq() -> int:
+    return ss.get("drill_seq", 0)
+
+
+def drill_to_explorer(label: str, origin: str, **filters) -> None:
+    """Open Activity Explorer with explicit filters. The previous Explorer state and the
+    originating section are remembered so 'Back to chart' restores them exactly."""
+    ss.drill = {"label": label, "origin": origin, "restore": {k: ss[k] for k in EXPLORER_KEYS if k in ss}}
+    for k, v in explorer_defaults().items():
+        ss[k] = v
+    for k, v in filters.items():
+        ss[k] = v
+    ss.drill_seq = drill_seq() + 1          # fresh chart keys: the same bar can be clicked again later
+    ss.nav = "Activity Explorer"
+
+
+def drill_back() -> None:
+    d = ss.pop("drill", None) or {}
+    for k, v in explorer_defaults().items():
+        ss[k] = v
+    for k, v in d.get("restore", {}).items():
+        ss[k] = v
+    ss.nav = d.get("origin", "Activity Explorer")
+
+
+def chart_click(key: str, make: callable) -> None:
+    """on_select callback: turn the clicked point's customdata into a drill-down."""
+    pts = selected_points(key)
+    if pts:
+        cd = pts[0].get("customdata")
+        if cd is not None:
+            make(cd if not isinstance(cd, list) or len(cd) > 1 else cd[0])
+
+
+def clickable(fig, key: str, make: callable) -> None:
+    k = f"{key}_{drill_seq()}"
+    st.plotly_chart(fig, use_container_width=True, key=k, on_select=partial(chart_click, k, make),
+                    selection_mode="points", config={"displayModeBar": False})
 
 
 # ------------------------------------------------------------------ header + navigation
@@ -153,20 +205,26 @@ def overview() -> None:
     with a:
         st.markdown("<h3>What was found, by category</h3>", unsafe_allow_html=True)
         counts = ACTS["category"].value_counts().reindex(CATEGORY_ORDER).fillna(0).astype(int)
-        st.plotly_chart(hbar([CATEGORY_LABELS[c] for c in counts.index], counts.tolist(), 300, "records", len(ACTS)),
-                        use_container_width=True, config={"displayModeBar": False})
-        st.markdown('<div class="muted">Number of records per category (share of all records). Each record has one '
-                    'primary category assigned by transparent keyword rules.</div>', unsafe_allow_html=True)
+        counts = ALL["category"].value_counts().reindex(CATEGORY_ORDER).fillna(0).astype(int)
+        clickable(hbar([CATEGORY_LABELS[c] for c in counts.index], counts.tolist(), 300, "records", len(ALL),
+                       keys=list(counts.index)), "ov_cat",
+                  lambda c: drill_to_explorer(f"Overview · category chart: {CATEGORY_LABELS[c]} (all India)", "Overview",
+                                              ax_cats=[c]))
+        st.markdown(f'<div class="muted">Records per category across India ({len(ALL)} incl. national-scope; share of '
+                    'all). <b>Click a bar</b> to list those records.</div>', unsafe_allow_html=True)
     with b:
         st.markdown("<h3>Who acted</h3>", unsafe_allow_html=True)
         cls = ALL["actor_classes"].str.split("|").explode()
         cls = cls[cls != ""].map(ACTOR_CLASS_LABELS).value_counts()
-        st.plotly_chart(hbar(cls.index.tolist()[:8], cls.values.tolist()[:8], 300, "records"),
-                        use_container_width=True, config={"displayModeBar": False})
+        label_to_key = {v: k for k, v in ACTOR_CLASS_LABELS.items()}
+        top = cls.head(8)
+        clickable(hbar(top.index.tolist(), top.values.tolist(), 300, "records",
+                       keys=[label_to_key[x] for x in top.index]), "ov_actor",
+                  lambda k: drill_to_explorer(f"Overview · who acted: {ACTOR_CLASS_LABELS[k]}", "Overview", ax_actor=[k]))
         n_none = int((ALL["actors"] == "").sum())
         st.markdown(f'<div class="muted">Actor types named in headlines (a record can name several). {n_none} of '
                     f'{len(ALL)} records name no identifiable actor in the headline. Identity only; legal authority '
-                    'is stated only for registry bodies.</div>', unsafe_allow_html=True)
+                    'is stated only for registry bodies. <b>Click a bar</b> to list those records.</div>', unsafe_allow_html=True)
     intelligence_brief()
 
 
@@ -213,11 +271,8 @@ def intelligence_brief() -> None:
 
 
 def open_in_explorer(states: list[str] | None, d0, d1) -> None:
-    reset_explorer()
-    ss.nav = "Activity Explorer"
-    if states:
-        ss.ax_states = states
-    ss.ax_dates = (max(d0, ALL["published"].min().date()), min(d1, ALL["published"].max().date()))
+    drill_to_explorer(f"Intelligence brief: {', '.join(states or [])[:80]}", "Overview", ax_states=states or [],
+                      ax_dates=(max(d0, ALL["published"].min().date()), min(d1, ALL["published"].max().date())))
 
 
 def state_panel(name: str) -> None:
@@ -233,11 +288,13 @@ def state_panel(name: str) -> None:
                 f'<b>{s["strong"]}</b> well-sourced. <span class="muted">{esc(s["status"])}.</span></p>',
                 unsafe_allow_html=True)
     sub = s["sub"]
-    rows = "".join(
-        f"<tr><td>{esc(CATEGORY_LABELS[c])}</td>"
-        + (f"<td class='n'>{int((sub['category'] == c).sum())}</td>" if (sub['category'] == c).any()
-           else "<td class='n none'>none found</td>") + "</tr>" for c in CATEGORY_ORDER)
-    st.markdown(f"<table class='tbl'>{rows}</table>", unsafe_allow_html=True)
+    counts = sub["category"].value_counts().reindex(CATEGORY_ORDER).fillna(0).astype(int)
+    clickable(hbar([CATEGORY_LABELS[c] for c in counts.index], counts.tolist(), 240, "records", keys=list(counts.index)),
+              f"ov_state_cat_{name}",
+              lambda c, n=name: drill_to_explorer(f"Overview · {n} profile: {CATEGORY_LABELS[c]}", "Overview",
+                                                  ax_states=[n], ax_cats=[c]))
+    st.markdown('<div class="muted">Click a bar to list that state\'s records in the category. 0 = none found in '
+                'this collection.</div>', unsafe_allow_html=True)
     insts = sub["institutions"].str.split("|").explode()
     insts = insts[insts != ""].value_counts()
     if not insts.empty:
@@ -324,6 +381,13 @@ def state_intelligence() -> None:
     st.markdown('<div class="muted">Stage columns read the headline\'s wording (e.g. "plans to", "approves", '
                 '"rolls out"). They separate proposals from announcements from things reported as running; they are not '
                 'an assessment of progress on the ground.</div>', unsafe_allow_html=True)
+    counts = sub["category"].value_counts().reindex(CATEGORY_ORDER).fillna(0).astype(int)
+    clickable(hbar([CATEGORY_LABELS[c] for c in counts.index], counts.tolist(), 250, "records", keys=list(counts.index)),
+              f"si_cat_chart_{name}",
+              lambda c, n=name: drill_to_explorer(f"State Intelligence · {n}: {CATEGORY_LABELS[c]}", "State Intelligence",
+                                                  ax_states=[n], ax_cats=[c]))
+    st.markdown('<div class="muted"><b>Click a bar</b> to open those records in Activity Explorer. The table adds the '
+                'headline-wording stage split.</div>', unsafe_allow_html=True)
     st.markdown(category_table_html(sub), unsafe_allow_html=True)
 
     st.markdown("<h2>Activities found</h2>", unsafe_allow_html=True)
@@ -364,89 +428,172 @@ def state_intelligence() -> None:
 
 
 # ================================================================== ACTIVITY EXPLORER
-def activity_explorer() -> None:
-    st.markdown('<p class="lede">Search and filter all activity records, then select a row to read the full record and '
-                'its provenance.</p>', unsafe_allow_html=True)
-    q = st.text_input("Search", key="ax_q", placeholder='e.g.  Kerala mission    or    "centre of excellence" IIT',
-                      help="All words must match (AND). Case-insensitive; partial words match ('gov' finds "
-                           "'government'). Put a phrase in double quotes to match it exactly.")
-    st.markdown('<div class="muted">Searches the headline, publisher description (where one exists), state, city, '
-                'named institutions, category, sector, stage and publisher. Every word must appear somewhere in the '
-                'record.</div>', unsafe_allow_html=True)
-    active = sum(bool(ss.get(k)) for k in ("ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link",
-                                           "ax_actor", "ax_scope", "ax_astage"))
-    dmin, dmax = ALL["published"].min().date(), ALL["published"].max().date()
-    active += int(ss.get("ax_dates", (dmin, dmax)) != (dmin, dmax))
-    with st.expander(f"Filters · {active} active" if active else "Filters", expanded=False):
-        f1, f2, f3 = st.columns(3)
-        states = f1.multiselect("State / UT", REGION_NAMES + ["India (national)"], key="ax_states", placeholder="Any")
-        cats = f2.multiselect("Category", CATEGORY_ORDER, format_func=CATEGORY_LABELS.get, key="ax_cats", placeholder="Any")
-        secs = f3.multiselect("Sector", list(SECTOR_LABELS), format_func=SECTOR_LABELS.get, key="ax_secs", placeholder="Any")
-        f4, f5, f6 = st.columns(3)
-        evid = f4.multiselect("Evidence status", VERIFICATION_ORDER, format_func=VERIFICATION_LABELS.get, key="ax_ev",
-                              placeholder="Any", help="Support in the sources held. Not a fact-check.")
-        stages = f5.multiselect("Stage (headline wording)", STAGE_ORDER, format_func=STAGE_LABELS.get, key="ax_stage",
-                                placeholder="Any")
-        links = f6.multiselect("Link type", list(URL_TYPE_LABELS), format_func=URL_TYPE_LABELS.get, key="ax_link",
-                               placeholder="Any", help="Direct publisher links point to the article. Google News "
-                                                       "redirects open it via news.google.com.")
-        f7, f8, f9 = st.columns(3)
-        actor_cls = f7.multiselect("Actor type", [k for k in ACTOR_CLASS_LABELS if k != "unknown"] + ["unknown"],
-                                   format_func=lambda k: ACTOR_CLASS_LABELS[k] if k != "unknown" else "No actor identified",
-                                   key="ax_actor", placeholder="Any", help="Identity of actors named in the headline.")
-        scope = f8.multiselect("Geographic scope", list(SCOPE_LABELS)[:3], format_func=SCOPE_LABELS.get, key="ax_scope",
-                               placeholder="Any")
-        astage = f9.multiselect("Activity stage (evidence-based)", list(ACTIVITY_STAGE_LABELS),
-                                format_func=ACTIVITY_STAGE_LABELS.get, key="ax_astage", placeholder="Any",
-                                help="Assigned only when an official source or 2+ publishers report the step.")
-        d1, d2 = st.columns([2, 1], vertical_alignment="bottom")
-        if "ax_dates" not in ss:
-            ss.ax_dates = (dmin, dmax)
-        dates = d1.slider("Source published between", min_value=dmin, max_value=dmax,
-                          format="D MMM YYYY", key="ax_dates",
-                          help="Publication date of the source, not the date the activity happened.")
-        d2.button("Reset search and filters", on_click=reset_explorer, use_container_width=True)
-    R = ALL[search_mask(ALL, q)]
-    for col, vals in (("state", states), ("category", cats), ("sector", secs), ("verification_status", evid),
-                      ("stage_cue", stages), ("url_type", links), ("geographic_scope", scope), ("activity_stage", astage)):
-        if vals:
-            R = R[R[col].isin(vals)]
-    if actor_cls:
-        want = set(actor_cls)
-        R = R[R["actor_classes"].map(lambda s: bool(want & set(s.split("|"))) or ("unknown" in want and not s))]
-    if dates != (dmin, dmax):
-        R = R[R["published"].between(pd.Timestamp(dates[0]), pd.Timestamp(dates[1]))]
-    st.markdown(f'<h3>{len(R):,} of {len(ALL):,} records</h3><div class="muted">{len(ACTS):,} state-level and '
-                f'{len(NAT):,} national-scope activity records.</div>', unsafe_allow_html=True)
-    record_browser(R, DUPS, key="ax_table")
-    c1, c2 = st.columns([1, 2])
-    c1.download_button("Download these records (CSV)",
-                       R.drop(columns=["published", "deadline_dt", "link", "search_text"], errors="ignore")
-                       .to_csv(index=False).encode(), "ai_policy_records_filtered.csv", "text/csv")
-    with st.expander("Reporting volume over time (matching records)"):
-        T = R[R["published"].notna()]
-        if T.empty:
-            st.info("No dated records match.")
-        else:
-            monthly = T.groupby(T["published"].dt.to_period("M").dt.to_timestamp()).size()
-            fig = go.Figure(go.Bar(x=monthly.index, y=monthly.values, marker=dict(color=BLUE, cornerradius=3),
-                                   hovertemplate="%{x|%B %Y}: %{y} records<extra></extra>"))
-            fig.update_layout(height=280, margin=dict(l=0, r=0, t=6, b=0), plot_bgcolor="rgba(0,0,0,0)",
-                              paper_bgcolor="rgba(0,0,0,0)", bargap=0.3,
-                              xaxis=dict(tickformat="%b %Y", tickfont=dict(color=INK2), showgrid=False),
-                              yaxis=dict(title=dict(text="Records (by source publication month)",
-                                                    font=dict(size=11, color=INK2)), gridcolor=RULE, zeroline=False))
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-            st.markdown('<div class="muted">Counts records by the month their source was published. It reflects '
-                        'reporting volume, not when activities happened. News APIs only reach back about 30 days, which '
-                        'inflates the latest month slightly; the first and last months are partial.</div>',
-                        unsafe_allow_html=True)
+TREND_COLORS = dict(zip(CATEGORY_ORDER, ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"]))  # validated set
 
 
 def reset_explorer() -> None:
-    for k in ("ax_q", "ax_states", "ax_cats", "ax_secs", "ax_ev", "ax_stage", "ax_link", "ax_dates", "ax_actor",
-              "ax_scope", "ax_astage"):
-        ss.pop(k, None)
+    for k, v in explorer_defaults().items():
+        ss[k] = v
+    ss.pop("drill", None)
+    ss.drill_seq = drill_seq() + 1
+
+
+def explorer_filtered(q: str) -> pd.DataFrame:
+    R = ALL[search_mask(ALL, q)]
+    for col, key in (("state", "ax_states"), ("category", "ax_cats"), ("sector", "ax_secs"),
+                     ("verification_status", "ax_ev"), ("stage_cue", "ax_stage"), ("url_type", "ax_link"),
+                     ("geographic_scope", "ax_scope"), ("activity_stage", "ax_astage")):
+        if ss.get(key):
+            R = R[R[col].isin(ss[key])]
+    if ss.get("ax_actor"):
+        want = set(ss["ax_actor"])
+        R = R[R["actor_classes"].map(lambda s: bool(want & set(s.split("|"))) or ("unknown" in want and not s))]
+    dmin, dmax = ALL["published"].min().date(), ALL["published"].max().date()
+    d = ss.get("ax_dates", (dmin, dmax))
+    if tuple(d) != (dmin, dmax):
+        R = R[R["published"].between(pd.Timestamp(d[0]), pd.Timestamp(d[1]))]
+    return R
+
+
+def active_filter_chips(dmin, dmax) -> list[str]:
+    fmt = {"ax_states": ("State / UT", str), "ax_cats": ("Category", CATEGORY_LABELS.get),
+           "ax_secs": ("Sector", SECTOR_LABELS.get), "ax_ev": ("Evidence", VERIFICATION_LABELS.get),
+           "ax_stage": ("Headline wording", STAGE_LABELS.get), "ax_link": ("Link", URL_TYPE_LABELS.get),
+           "ax_actor": ("Actor type", lambda k: ACTOR_CLASS_LABELS.get(k, "No actor identified")),
+           "ax_scope": ("Scope", SCOPE_LABELS.get), "ax_astage": ("Activity stage", ACTIVITY_STAGE_LABELS.get)}
+    chips = []
+    if ss.get("ax_q"):
+        chips.append(f'Search: “{ss["ax_q"]}”')
+    for k, (lab, f) in fmt.items():
+        if ss.get(k):
+            chips.append(f"{lab}: " + ", ".join(str(f(v)) for v in ss[k]))
+    d = ss.get("ax_dates", (dmin, dmax))
+    if tuple(d) != (dmin, dmax):
+        chips.append(f"Published: {d[0]:%d %b %Y} – {d[1]:%d %b %Y}")
+    return chips
+
+
+def activity_explorer() -> None:
+    dmin, dmax = ALL["published"].min().date(), ALL["published"].max().date()
+    if "ax_dates" not in ss:
+        ss.ax_dates = (dmin, dmax)
+    drill = ss.get("drill")
+    if drill:
+        b1, b2, b3 = st.columns([3, 1, 1], vertical_alignment="center")
+        b1.markdown(f'<div class="note" style="margin:0"><b>Opened from a chart:</b> {esc(drill["label"])}</div>',
+                    unsafe_allow_html=True)
+        b2.button(f"← Back to {drill['origin']}", on_click=drill_back, use_container_width=True)
+        b3.button("Clear and show all", on_click=reset_explorer, use_container_width=True, key="drill_clear")
+
+    q = st.text_input("Search all of India", key="ax_q",
+                      placeholder='Search every state, UT and national record, e.g.  collab   ·   "AI safety"   ·   IIT Madras',
+                      help="All words must match (AND); case-insensitive; partial words match ('collab' finds "
+                           "'collaboration'). \"Quoted phrases\" match exactly. No state needs to be selected.")
+    st.markdown('<div class="muted">Searches headline, publisher description, actors and actor types, institutions, '
+                'publisher, state, city, region, category, sector, stage and evidence text across all state-level and '
+                'national records. State selection below only narrows results.</div>', unsafe_allow_html=True)
+
+    f1, f2, f3, f4 = st.columns([1.3, 1.3, 1, 1.4], vertical_alignment="bottom")
+    f1.multiselect("States / UTs (optional)", REGION_NAMES + ["India (national)"], key="ax_states",
+                   placeholder="All of India")
+    f2.multiselect("Category", CATEGORY_ORDER, format_func=CATEGORY_LABELS.get, key="ax_cats", placeholder="All")
+    f3.multiselect("Evidence", VERIFICATION_ORDER, format_func=VERIFICATION_LABELS.get, key="ax_ev", placeholder="All",
+                   help="Support in the sources held. Not a fact-check.")
+    f4.slider("Source published", min_value=dmin, max_value=dmax, format="MMM YYYY", key="ax_dates",
+              help="Publication date of the source, not the date the activity happened.")
+    with st.expander("Advanced filters"):
+        a1, a2, a3 = st.columns(3)
+        a1.multiselect("Sector", list(SECTOR_LABELS), format_func=SECTOR_LABELS.get, key="ax_secs", placeholder="All")
+        a2.multiselect("Actor type", [k for k in ACTOR_CLASS_LABELS if k != "unknown"] + ["unknown"],
+                       format_func=lambda k: ACTOR_CLASS_LABELS[k] if k != "unknown" else "No actor identified",
+                       key="ax_actor", placeholder="All", help="Identity of actors named in the headline.")
+        a3.multiselect("Geographic scope", list(SCOPE_LABELS)[:3], format_func=SCOPE_LABELS.get, key="ax_scope",
+                       placeholder="All")
+        a4, a5, a6 = st.columns(3)
+        a4.multiselect("Activity stage (evidence-based)", list(ACTIVITY_STAGE_LABELS), format_func=ACTIVITY_STAGE_LABELS.get,
+                       key="ax_astage", placeholder="All",
+                       help="Assigned only when an official source or 2+ publishers report the step.")
+        a5.multiselect("Headline wording", STAGE_ORDER, format_func=STAGE_LABELS.get, key="ax_stage", placeholder="All")
+        a6.multiselect("Link type", list(URL_TYPE_LABELS), format_func=URL_TYPE_LABELS.get, key="ax_link", placeholder="All")
+
+    chips = active_filter_chips(dmin, dmax)
+    c1, c2 = st.columns([5, 1], vertical_alignment="center")
+    c1.markdown('<div style="margin:0.2rem 0">' + ("".join(f'<span class="tag strong">{esc(c)}</span>' for c in chips)
+                if chips else '<span class="muted">No filters: showing the full dataset.</span>') + "</div>",
+                unsafe_allow_html=True)
+    if chips:
+        c2.button("Clear all filters", on_click=reset_explorer, use_container_width=True, key="clear_all")
+
+    R = explorer_filtered(q)
+    n_states = R.loc[R["state"].isin(REGION_NAMES), "state"].nunique()
+    n_nat = int((R["geographic_scope"] == "national").sum())
+    st.markdown(stats_html([(f"{len(R):,}", f"matching records across India (of {len(ALL):,})"),
+                            (f"{n_states} of 36", "states / UTs represented"),
+                            (str(n_nat), "national-level records (no state attribution)"),
+                            (str(int(R["strong_evidence"].sum())), "well-sourced (primary or 2+ publishers)")]),
+                unsafe_allow_html=True)
+    if R.empty:
+        st.markdown('<div class="note"><b>No records match.</b> Try fewer words, a partial word (e.g. "collab"), or '
+                    'removing a filter. Zero matches means nothing in this collection matched, <b>not</b> that no AI '
+                    'activity exists in the selected states.</div>', unsafe_allow_html=True)
+        return
+
+    m1, m2 = st.columns([1.25, 1], gap="large")
+    with m1:
+        mk = f"ax_map_{drill_seq()}"
+        fig = build_map("records", state_metrics(R), None, GEO, None, height=520)
+        st.plotly_chart(fig, use_container_width=True, key=mk, on_select=select_callback(mk), selection_mode="points",
+                        config={"displayModeBar": False, "scrollZoom": False})
+        if ss.get(mk) and selected_points(mk) and ss.focus_state in REGION_NAMES:
+            st.button(f"Open {ss.focus_state} profile →", on_click=go_to, args=("State Intelligence",), type="primary")
+        st.markdown(f'<div class="muted">Where the {len(R):,} matching records are attributed. {n_nat} national-level '
+                    'records have no state and are not mapped. Clicking a state selects it for its profile; it does '
+                    '<b>not</b> change your search or filters.</div>', unsafe_allow_html=True)
+    with m2:
+        st.markdown("<h3>Matches by state / UT</h3>", unsafe_allow_html=True)
+        by = R["state"].value_counts()
+        st.markdown("<table class='tbl'>" + "".join(f"<tr><td>{esc(k)}</td><td class='n'>{v}</td></tr>"
+                                                     for k, v in by.head(14).items()) + "</table>", unsafe_allow_html=True)
+        if len(by) > 14:
+            st.markdown(f'<div class="muted">+ {len(by) - 14} more.</div>', unsafe_allow_html=True)
+
+    st.markdown("<h3>Records</h3>", unsafe_allow_html=True)
+    record_browser(R, DUPS, key=f"ax_table_{drill_seq()}")
+    st.download_button("Download these records (CSV)",
+                       R.drop(columns=["published", "deadline_dt", "app_deadline_dt", "link", "search_text"], errors="ignore")
+                       .to_csv(index=False).encode(), "ai_policy_records_filtered.csv", "text/csv")
+
+    st.markdown("<h3>Reporting volume over time (matching records)</h3>", unsafe_allow_html=True)
+    T = R[R["published"].notna()]
+    T = T.assign(month=T["published"].dt.to_period("M").dt.to_timestamp())
+    piv = T.pivot_table(index="month", columns="category", values="record_id", aggfunc="count", fill_value=0)
+    fig = go.Figure()
+    for c in CATEGORY_ORDER:
+        if c in piv:
+            fig.add_trace(go.Bar(x=piv.index, y=piv[c], name=CATEGORY_LABELS[c], marker_color=TREND_COLORS[c],
+                                 marker_line=dict(color="#ffffff", width=1.5),
+                                 customdata=[[d.strftime("%Y-%m"), c] for d in piv.index],
+                                 selected=dict(marker=dict(opacity=1)), unselected=dict(marker=dict(opacity=1)),
+                                 hovertemplate="%{x|%b %Y} · " + CATEGORY_LABELS[c] + ": %{y}<br><i>click to list</i><extra></extra>"))
+    fig.update_layout(barmode="stack", height=360, margin=dict(l=0, r=0, t=6, b=0), bargap=0.25, clickmode="event+select",
+                      dragmode=False, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                      legend=dict(orientation="h", y=-0.18, font=dict(size=11, color=INK2), traceorder="normal"),
+                      xaxis=dict(tickformat="%b %Y", tickfont=dict(color=INK2), showgrid=False),
+                      yaxis=dict(title=dict(text="Records by source publication month", font=dict(size=11, color=INK2)),
+                                 gridcolor=RULE, zeroline=False))
+
+    def month_drill(cd):
+        month, cat = cd
+        p = pd.Period(month, "M")
+        d0 = max(p.start_time.date(), dmin); d1 = min(p.end_time.date(), dmax)
+        keep = {k: ss[k] for k in EXPLORER_KEYS if k in ss and k not in ("ax_cats", "ax_dates")}
+        drill_to_explorer(f"Trend chart: {CATEGORY_LABELS[cat]}, {p.strftime('%B %Y')}", "Activity Explorer",
+                          **keep, ax_cats=[cat], ax_dates=(d0, d1))
+
+    clickable(fig, "ax_trend", month_drill)
+    st.markdown('<div class="muted"><b>Click a segment</b> to list that month and category (other filters are kept; '
+                '"Back" restores the previous view). Months are source publication months, not activity dates; news APIs '
+                'reach back only ~30 days, so the latest month is partly API-driven.</div>', unsafe_allow_html=True)
 
 
 # ================================================================== OPPORTUNITIES
@@ -469,14 +616,7 @@ def opportunities() -> None:
     asof = pd.Timestamp(COLLECTED) if COLLECTED != "unknown" else None
     V = OPPS[OPPS["review_status"] == pick].sort_values("published", ascending=False)
     for _, r in V.iterrows():
-        if pd.notna(r["deadline_dt"]):
-            when = f'Deadline {r["deadline_dt"]:%d %b %Y} (stated in source)'
-            if asof is not None:
-                rel = ("had passed" if r["deadline_dt"] < asof else "fell on" if r["deadline_dt"] == asof
-                       else "had not yet passed")
-                when += f'; {rel} the collection date ({asof:%d %b %Y})'
-        else:
-            when = "No deadline stated in the source"
+        when, evidence = deadline_display(r, asof)
         pub = r["published"].strftime("%d %b %Y") if pd.notna(r["published"]) else "unknown"
         head = (f'<a href="{esc(r["link"])}" target="_blank" rel="noopener">{esc(r["title"])}</a>' if r["link"]
                 else f'<span class="t">{esc(r["title"])}</span>')
@@ -488,7 +628,19 @@ def opportunities() -> None:
             f'<div style="margin-top:0.3rem">{head}</div>{desc}'
             f'<div class="m"><b>{esc(when)}</b> · published {pub} · {esc(r["source_name"])} · '
             f'{esc(r["verification_label"])} · {esc(r["url_label"])}</div>'
-            f'<div class="m">Review note: {esc(r["review_note"] or "—")}</div></div>', unsafe_allow_html=True)
+            + (f'<div class="m">Evidence: “{esc(evidence)}”</div>' if evidence else "")
+            + f'<div class="m">Review note: {esc(r["review_note"] or "—")}</div></div>', unsafe_allow_html=True)
+        details = [(lab, r[c]) for lab, c in (("Programme / event dates", "programme_dates"), ("Eligibility", "eligibility"),
+                                               ("Fees / stipend", "fees_stipend"), ("Mode / location", "location_mode"),
+                                               ("Application URL", "application_url"), ("Organiser", "organiser")) if r[c]]
+        if details or r["deadline_source_url"]:
+            with st.expander("Details extracted from the source (evidence excerpts)"):
+                for lab, v in details:
+                    st.markdown(f'<div class="kv"><div class="k">{esc(lab)}</div><div class="v">'
+                                f'{esc(v.replace(" || ", " … "))}</div></div>', unsafe_allow_html=True)
+                if r["deadline_source_url"]:
+                    st.markdown(f'<div class="muted">Deadline source: {esc(r["deadline_source_url"])} · checked '
+                                f'{esc(r["enrichment_checked_on"])}</div>', unsafe_allow_html=True)
 
 
 # ================================================================== STAKEHOLDERS

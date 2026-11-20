@@ -187,13 +187,18 @@ def hotspots(df: pd.DataFrame) -> pd.DataFrame:
     return located.groupby(["place", "state", "lat", "lon"]).size().rename("records").reset_index()
 
 
-def hbar(labels: list[str], values: list[int], height: int, unit: str, total: int | None = None) -> go.Figure:
+def hbar(labels: list[str], values: list[int], height: int, unit: str, total: int | None = None,
+         keys: list[str] | None = None) -> go.Figure:
+    """Horizontal bars. With `keys`, each bar carries its key as customdata and is clickable."""
     text = [f"{v}" + (f"  ({v / total:.0%})" if total else "") for v in values]
+    hint = "<br><i>click to see these records</i>" if keys else ""
     fig = go.Figure(go.Bar(x=values, y=labels, orientation="h", marker=dict(color=BLUE, cornerradius=3),
-                           text=text, textposition="outside", cliponaxis=False,
-                           textfont=dict(color=INK2, size=11), hovertemplate="%{y}: %{x} " + unit + "<extra></extra>"))
+                           customdata=keys, text=text, textposition="outside", cliponaxis=False,
+                           selected=dict(marker=dict(opacity=1)), unselected=dict(marker=dict(opacity=1)),
+                           textfont=dict(color=INK2, size=11),
+                           hovertemplate="%{y}: %{x} " + unit + hint + "<extra></extra>"))
     fig.update_layout(height=height, margin=dict(l=0, r=60, t=4, b=0), plot_bgcolor="rgba(0,0,0,0)",
-                      paper_bgcolor="rgba(0,0,0,0)", bargap=0.38,
+                      paper_bgcolor="rgba(0,0,0,0)", bargap=0.38, clickmode="event+select", dragmode=False,
                       xaxis=dict(visible=False, range=[0, max(max(values, default=1), 1) * 1.25]),
                       yaxis=dict(autorange="reversed", tickfont=dict(size=12, color=INK2)))
     return fig
@@ -311,6 +316,11 @@ def category_table_html(sub: pd.DataFrame) -> str:
     return f"<table class='tbl'>{head}{''.join(body)}</table>"
 
 
+def selected_points(key: str) -> list[dict]:
+    sel = st.session_state.get(key)
+    return (sel or {}).get("selection", {}).get("points", []) if sel else []
+
+
 def select_callback(key: str, target: str = "focus_state"):
     """Plotly on_select callback factory: copy the clicked state into session state."""
     return partial(_on_map_select, key, target)
@@ -326,3 +336,27 @@ def _on_map_select(key: str, target: str) -> None:
         if name in REGION_NAMES:
             st.session_state[target] = name
             return
+
+
+def deadline_display(r: pd.Series, asof: pd.Timestamp | None) -> tuple[str, str]:
+    """Deadline text + evidence. 'Not stated' is only said when an article was actually read."""
+    def rel(d):
+        if asof is None:
+            return ""
+        return "; " + ("had passed" if d < asof else "fell on" if d == asof else "had not yet passed") + \
+               f" at collection ({asof:%d %b %Y})"
+    status = r["deadline_extraction_status"] or "not_checked"
+    if status == "extracted" and pd.notna(r["app_deadline_dt"]):
+        return (f'Application deadline {r["app_deadline_dt"]:%d %b %Y} ({r["deadline_confidence"]} confidence, from the '
+                f'source text){rel(r["app_deadline_dt"])}', r["deadline_evidence"])
+    if status == "conflict":
+        return "Conflicting deadlines in the sources: not resolved, see evidence", r["deadline_evidence"]
+    unverified = {"source_restricted": "publisher blocks automated access (robots.txt)",
+                  "source_inaccessible": "publisher article could not be located or opened",
+                  "not_checked": "article not yet checked"}.get(status)
+    if pd.notna(r["deadline_dt"]):
+        return (f'Deadline {r["deadline_dt"]:%d %b %Y} stated in the headline{rel(r["deadline_dt"])}'
+                + (f"; article not verified ({unverified})" if unverified else ""), "")
+    if status == "not_stated_in_accessible_sources":
+        return "No application deadline found in the publisher article that was read", ""
+    return f"Deadline not verified: {unverified}", ""

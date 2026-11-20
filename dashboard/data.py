@@ -81,7 +81,10 @@ TEXT_COLS = ["state", "city", "institutions", "title", "summary", "summary_basis
              "announcement_date_status", "opportunity_type", "deadline_status", "record_id", "cluster_id", "raw_ref",
              "collected_at", "category_confidence", "stage_cue", "review_status", "review_note", "matched_query",
              "states_mentioned", "geographic_scope", "location_basis", "actors", "actor_classes", "actor_levels",
-             "actor_location", "activity_stage", "stage_confidence", "stage_basis"]
+             "actor_location", "activity_stage", "stage_confidence", "stage_basis",
+             "application_deadline", "deadline_extraction_status", "deadline_confidence", "deadline_evidence",
+             "deadline_source_url", "programme_dates", "eligibility", "fees_stipend", "location_mode",
+             "application_url", "organiser", "enrichment_checked_on"]
 
 
 def _read(name: str) -> pd.DataFrame:
@@ -106,6 +109,7 @@ def clean_records(df: pd.DataFrame) -> pd.DataFrame:
         df[c] = df[c].fillna("").astype(str).str.strip()
     df["published"] = pd.to_datetime(_col(df, "published_date"), errors="coerce", format="%Y-%m-%d")
     df["deadline_dt"] = pd.to_datetime(_col(df, "deadline"), errors="coerce", format="%Y-%m-%d")
+    df["app_deadline_dt"] = pd.to_datetime(_col(df, "application_deadline"), errors="coerce", format="%Y-%m-%d")
     for c in ("lat", "lon"):
         df[c] = pd.to_numeric(_col(df, c), errors="coerce")
     df["duplicate_count"] = pd.to_numeric(_col(df, "duplicate_count"), errors="coerce").fillna(1).astype(int)
@@ -138,7 +142,10 @@ def clean_records(df: pd.DataFrame) -> pd.DataFrame:
                          + " \n " + df["institutions"].str.replace("|", " ", regex=False) + " \n " + df["category_label"]
                          + " \n " + df["sector_label"] + " \n " + df["source_name"] + " \n " + df["stage_label"]
                          + " \n " + df["opportunity_type"].str.replace("_", " ") + " \n " + df["actor_display"]
-                         + " \n " + df["actor_class_display"] + " \n " + df["scope_label"]).str.casefold()
+                         + " \n " + df["actor_class_display"] + " \n " + df["scope_label"]
+                         + " \n " + df["state_evidence"] + " \n " + df["states_mentioned"].str.replace("|", " ", regex=False)
+                         + " \n " + df["corroborating_sources"].str.replace("|", " ", regex=False)
+                         + " \n " + df["verification_label"] + " \n " + df["region"]).str.casefold()
     return df
 
 

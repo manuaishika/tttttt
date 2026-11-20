@@ -39,6 +39,7 @@ pytest -q                               # tests
 python -m src.pipeline                  # rebuild datasets from all raw snapshots
 python -m src.collect                   # collect a fresh RSS snapshot
 python -m src.collect --no-rss --apis gnews newsapi   # optional API discovery
+python -m src.enrich_opportunities      # optional: read opportunity articles for deadlines/details (network)
 ```
 API keys are optional. Copy `.env.example` to `.env` and set `GNEWS_API_KEY` / `NEWSAPI_KEY`; without them the RSS pipeline runs as normal. Never commit `.env`.
 
