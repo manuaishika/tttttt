@@ -247,10 +247,13 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
 
     # ID continuity: if a cluster contains an item that was previously published under its own ID,
     # keep that ID (e.g. when a newly collected report becomes the canonical one).
+    # The repository's published dataset is always a reference, so a rebuild into a fresh
+    # folder reproduces the same IDs.
     prev_ids = set()
-    for f in ("activities.csv", "opportunities.csv", "national_activities.csv"):
-        if (out_dir / f).exists():
-            prev_ids |= set(pd.read_csv(out_dir / f, dtype=str, usecols=["record_id"])["record_id"])
+    for d in {out_dir, PROCESSED}:
+        for f in ("activities.csv", "opportunities.csv", "national_activities.csv"):
+            if (d / f).exists():
+                prev_ids |= set(pd.read_csv(d / f, dtype=str, usecols=["record_id"])["record_id"])
     _rid = lambda m: "r_" + hashlib.sha1(f"{m['state']}|{m['norm_title']}|{m['published_date'][:7]}".encode()).hexdigest()[:12]
 
     stage_manual = {}
@@ -301,6 +304,8 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
 
     # ---- article-level opportunity enrichment (evidence-backed; headline 'deadline' untouched) ----
     enr_path = out_dir / "opportunity_enrichment.csv"
+    if not enr_path.exists():
+        enr_path = PROCESSED / "opportunity_enrichment.csv"      # rebuilds into a fresh folder keep the evidence
     enr = {}
     if enr_path.exists():
         enr = {r["record_id"]: r for r in csv.DictReader(enr_path.open())}

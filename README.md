@@ -24,7 +24,7 @@ Records are collected from news and official feeds, normalised, deduplicated acr
 | `duplicates.csv` | Which reports were merged into each record |
 | `source_registry.csv`, `state_coverage.csv`, `run_summary.json` | Sources, per-state research coverage, run counts |
 
-Current dataset (collected 2026-11-20): **864 activities, 15 opportunities, 34 of 36 states/UTs**.
+Current dataset (collected 2026-11-20): **878 state-level activities across 34 of 36 states/UTs, 25 national-scope activities, 15 opportunities, 49 stakeholder organisations**.
 
 ## Install
 ```bash

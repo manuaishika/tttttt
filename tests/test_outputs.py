@@ -40,3 +40,16 @@ def test_stage_cue_and_opportunity_review_present(out):
     from src.schema import REVIEW_STATUSES, STAGE_CUES
     assert out["a"]["stage_cue"].isin(STAGE_CUES).all()
     assert out["o"]["review_status"].isin(REVIEW_STATUSES).all()
+
+
+def test_offline_rebuild_into_fresh_folder_reproduces_ids(tmp_path):
+    from src.pipeline import ROOT, all_raw, process
+    process(all_raw(ROOT / "data" / "raw"), tmp_path, window_days=365)
+    for f in ("activities.csv", "opportunities.csv", "national_activities.csv"):
+        a = pd.read_csv(P / f, dtype=str)["record_id"]
+        b = pd.read_csv(tmp_path / f, dtype=str)["record_id"]
+        assert set(a) == set(b), f
+    cols = ["record_id", "application_deadline", "deadline_extraction_status", "deadline_evidence", "review_status"]
+    o1 = pd.read_csv(P / "opportunities.csv", dtype=str, keep_default_na=False)[cols].sort_values("record_id").reset_index(drop=True)
+    o2 = pd.read_csv(tmp_path / "opportunities.csv", dtype=str, keep_default_na=False)[cols].sort_values("record_id").reset_index(drop=True)
+    assert o1.equals(o2)
