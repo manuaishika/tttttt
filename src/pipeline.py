@@ -370,7 +370,7 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
         "excluded": len(excluded), "exclusion_reasons": dict(Counter(e["exclusion_reason"].split(":")[0] for e in excluded)),
         "validation_warnings": len([i for i in issues if i.severity == "warning"]),
         "verification_status": dict(Counter(r["verification_status"] for r in valid)),
-        "states_with_records": len({r["state"] for r in valid if r["state"] != S.PAN_INDIA}),
+        "states_with_records": len({r["state"] for r in valid if r["state"] in REGION_BY_NAME}),
         "url_type": dict(Counter(r["url_type"] for r in valid)),
         "summary_basis": dict(Counter(r["summary_basis"] for r in valid)),
         "by_discovery_source": source_contribution(raw, cands, valid, rejected),

@@ -53,3 +53,8 @@ def test_offline_rebuild_into_fresh_folder_reproduces_ids(tmp_path):
     o1 = pd.read_csv(P / "opportunities.csv", dtype=str, keep_default_na=False)[cols].sort_values("record_id").reset_index(drop=True)
     o2 = pd.read_csv(tmp_path / "opportunities.csv", dtype=str, keep_default_na=False)[cols].sort_values("record_id").reset_index(drop=True)
     assert o1.equals(o2)
+
+
+def test_states_with_records_counts_only_real_states(out):
+    cov = pd.read_csv(P / "state_coverage.csv")
+    assert out["summary"]["states_with_records"] == int((cov["records"] > 0).sum())
