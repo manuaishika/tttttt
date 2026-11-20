@@ -1,33 +1,33 @@
-# Limitations and known holes
+# Limitations
 
-Stated plainly, because "what's broken" matters more than hiding it. Numbers refer to the first batch (collected 2026-11-20).
+Figures refer to the current dataset (collected 2026-11-20): 864 activity records, 15 opportunities.
 
-## Data quality
-| # | Limitation | Impact | Mitigation / next step |
-|---|---|---|---|
-| 1 | **805 of 811 summaries are headline-only** (`summary_basis = headline_only`). Google News RSS has no snippet. | The "one-line summary" is mostly the headline, not a real summary | Direct feeds give real descriptions (6 records). Options: a keyed news API (GNews/NewsAPI) or crawling official pages. Not faked with generated text. |
-| 2 | **`source_url` for Google-sourced records is a `news.google.com` redirect.** I did not decode the tokens (it reverse-engineers an undocumented endpoint and was judged out of bounds). | The original publisher URL is not stored for those; publisher name + home page are | Keyed news APIs return the real URL. Direct feeds already do. |
-| 3 | **No formal evaluation.** Quality was checked by manual audits of ~100 sampled records/exclusions, not against a labelled set. Known false positives exist (e.g. a company literally named "Spintronics AI"; startup funding that slipped through the investment rule). | Precision/recall unquantified | Next step: hand-label ~200 records, report precision/recall per category and per exclusion reason |
-| 4 | **Opportunities are sparse and noisy** (19; roughly two-thirds judged relevant on audit). Fellowships are announced on organisation sites, not in news. | The opportunities section is a sample, not a directory | Add crawlers/feeds for IndiaAI, IITs, AI-safety orgs; manually curate |
-| 5 | **Classification is keyword-based.** Headlines without trigger words are missed (395 `no_category_match`); mixed stories take one category | Some real activity is absent; some labels are arguable | Semantic classification as a later iteration, evaluated against the same labelled set |
-| 6 | **One state per record.** Multi-state stories keep the query's state if mentioned, else the first (14 records note "also mentions") | Slight undercount for multi-state items | Could emit one row per state |
-| 7 | **Politicians' names are not mapped to states** ("Revanth Reddy suggests…") | Some state stories lack a text anchor and land in `state_not_in_text` (770) | Maintain office-holder lookup; entity linking |
-| 8 | **`announcement_date` is never determined.** Only publication dates exist | Event date can differ from publication date | Extract from full text where legally accessible |
+## Evidence and content
+- **Mostly single-source.** 561 records rest on one established outlet and 155 on an unrecognised publisher; only 43 are primary-source and 120 corroborated. No record has been manually fact-checked.
+- **Headline-only records.** 793 of 879 records have no publisher description (Google News RSS gives none). They are labelled `headline_only`; the headline is not presented as a summary.
+- **Redirect links.** 794 records link via `news.google.com` redirects (labelled `google_news_redirect`); the original publisher URL is not stored for these. Direct links exist for 85.
+- **No event dates.** Only publication dates are known; `announcement_date` is `not_determined` everywhere. Trends are by publication month.
+- **One state per record.** Multi-state stories are assigned to one state; others are noted in `state_evidence`.
+- **Classification is keyword-based** and unevaluated against a labelled set. Manual audits of samples, not measured precision/recall, guided the rules. Known misses: headlines naming only a politician (e.g. a chief minister by name), and reworded duplicates that stay separate.
+
+## News APIs
+- Free tiers return **only ~30 days** (GNews: 12-hour delay, 10 articles/request; NewsAPI: from 2026-10-19) and no full text. They cannot backfill the 12-month window, so the trend view excludes API-only records by default.
+- One run used 85 requests per API: GNews returned 272 items and contributed to 59 published records (39 found by no other channel); NewsAPI returned 2,545 items and contributed to 23 records (21 found only by it). No API record failed validation.
+- **API-only records are noisier.** A manual read of all 60 API-only records judged about 40 relevant (about 34 clearly), against noticeably higher precision for RSS records. The rest are mainly corporate, private-college or event stories that still pass the rules.
+
+## Opportunities
+- 15 records, of which a manual check judged **12 valid**, 1 borderline (public access to a summit expo) and 2 not genuine openings (a summit report; a PR conference mentioning AI). They remain in the file, unflagged by the pipeline.
+- Opportunities come from news, not organiser websites. Coverage is a sample, not a directory; deadlines are shown only when stated, and many listings have closed.
 
 ## Coverage bias
-* **English-language news only.** Regional-language reporting and state-government portals (which often publish first, and in local languages) are largely invisible. States with more English media (Karnataka, Telangana, Maharashtra) look better than states with less, independent of real activity.
-* **Counts measure media attention, not activity.** Do not rank states by record count. Coverage ≠ capability.
-* **Absence of evidence ≠ absence of activity.** `state_coverage.csv` distinguishes `no_evidence_found_in_research` (Dadra & Nagar Haveli and Daman & Diu, Lakshadweep) from `limited_evidence`; neither claims nothing happens there.
-* **Single 12-month snapshot**, one collection run. Google News returns ≤~100 items per query, so high-volume states are truncated.
-* **Direct feeds return only recent items** (no history).
-* **Unreachable official portals.** 6 of 16 seed sites — the Karnataka, Tamil Nadu, Kerala, Maharashtra, Odisha and Assam portals — timed out or errored from the build environment (`source_registry.csv`, column `origin`). This may be the environment's network rather than the sites. State portals are *not scraped* at all in this batch.
+- English-language news only; regional-language media and state portals are largely invisible. States with more English coverage look more active. **Counts are not a ranking.**
+- Dadra & Nagar Haveli and Daman & Diu and Lakshadweep have no records; that is an information gap, not evidence of no activity.
+- Google News returns about 100 items per query, so high-volume states are truncated. Direct RSS feeds have no history.
+- Official seed sites are not scraped; 5 of the 8 state portals probed (Karnataka, Tamil Nadu, Maharashtra, Odisha, Assam) were unreachable from the collection environment on the last check; reachability varies between runs.
 
 ## Technical
-* The institution registry is a 47-entry hand-curated seed with approximate campus coordinates, so institution-level hotspots exist for only 20 distinct institutions (53 records). City-level markers use a 27-city table.
-* The "Pan-India" opportunity label means "not tied to a state"; it includes global programmes (e.g. company fellowships) that happen to be open to Indian applicants.
-* The XLSX is regenerated from the CSVs on every run; hand edits would be overwritten.
-* Source lists (`sources.py`) are judgement calls. Classifying a publisher as "established" says it is a long-standing outlet with editorial staff, not that every story is accurate.
-* Verification status is **not** a fact-check. No record has been human-verified.
-
-## Not built (deliberately)
-Semantic/vector/hybrid search, multilingual search, per-state official-portal scrapers. The data model supports adding them without a rewrite (see `methodology.md` §9).
+- **Map boundaries** come from a community dataset with no licence file and no accuracy guarantee (pinned and checksum-verified). It is not an authoritative Survey of India product.
+- The institution registry has 47 hand-entered entries with approximate coordinates, so hotspots cover only registry institutions and 27 cities.
+- Source-type lists are judgement calls.
+- **Not implemented:** state-level 0–3 assessment scores, gap/recommendation analysis, semantic or multilingual search, portal scrapers.
+- The live deployment depends on the hosting account (see README).
