@@ -157,6 +157,14 @@ def validate_record(rec: dict, today: date | None = None) -> list[Issue]:
             err("opportunity_type", f"must be one of {S.OPPORTUNITY_TYPES}")
         if rec.get("deadline_status") not in ("stated", "not_stated"):
             err("deadline_status", "must be stated|not_stated")
+        des = rec.get("deadline_extraction_status")
+        if des not in S.DEADLINE_EXTRACTION_STATUSES:
+            err("deadline_extraction_status", f"must be one of {S.DEADLINE_EXTRACTION_STATUSES}")
+        if des == "extracted" and (_blank(rec.get("deadline_evidence")) or
+                                   not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(rec.get("application_deadline") or ""))):
+            err("application_deadline", "an extracted deadline needs an ISO date and its evidence excerpt")
+        if des != "extracted" and not _blank(rec.get("application_deadline")):
+            err("application_deadline", "a deadline value requires status 'extracted'")
         if rec.get("review_status") not in S.REVIEW_STATUSES:
             err("review_status", f"must be one of {S.REVIEW_STATUSES}")
         if rec.get("deadline_status") == "not_stated" and not _blank(rec.get("deadline")):

@@ -131,7 +131,17 @@ OPPORTUNITY_EXTRA_COLUMNS = [
     "deadline_status",           # stated | not_stated
     "review_status",             # manual review (config/opportunity_review.csv) or not_reviewed
     "review_note",
+    # --- article-level enrichment (src/enrich_opportunities.py); never overwrites the headline 'deadline' ---
+    "application_deadline",      # ISO date extracted from article/reviewer excerpt, with evidence
+    "deadline_extraction_status",  # extracted | conflict | not_stated_in_accessible_sources | source_restricted | source_inaccessible | not_checked
+    "deadline_confidence",       # high | medium (year inferred) | low (weak cue) | ''
+    "deadline_evidence",         # exact supporting sentence(s) and their source kind
+    "deadline_source_url",
+    "programme_dates", "eligibility", "fees_stipend", "location_mode", "application_url", "organiser",
+    "enrichment_checked_on",
 ]
+DEADLINE_EXTRACTION_STATUSES = ["extracted", "conflict", "not_stated_in_accessible_sources", "source_restricted",
+                                "source_inaccessible", "not_checked"]
 STAGE_CUES = ["proposed_or_planned", "announced_or_approved", "implemented_or_operational", "unclear"]
 REVIEW_STATUSES = ["valid", "borderline", "not_an_opportunity", "not_reviewed"]
 OPPORTUNITY_COLUMNS = ACTIVITY_COLUMNS + OPPORTUNITY_EXTRA_COLUMNS

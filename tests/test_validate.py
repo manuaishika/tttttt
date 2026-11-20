@@ -76,7 +76,7 @@ def test_duplicate_ids_rejected():
 
 def test_opportunity_requires_type():
     r = good(); r["record_type"] = "opportunity"
-    assert {"opportunity_type", "deadline_status", "review_status"} <= errors(r)
+    assert {"opportunity_type", "deadline_status", "review_status", "deadline_extraction_status"} <= errors(r)
 
 
 def test_source_classification():
@@ -103,3 +103,13 @@ def test_google_redirect_must_be_labelled():
 def test_discovery_sources_and_summary_basis_controlled():
     r = good(); r["discovery_sources"] = "twitter"; assert "discovery_sources" in errors(r)
     r = good(); r["summary_basis"] = "llm_summary"; assert "summary_basis" in errors(r)
+
+
+def test_extracted_deadline_requires_evidence_and_unverified_has_no_value():
+    r = good(); r.update(record_type="opportunity", opportunity_type="fellowship", deadline_status="not_stated",
+                         review_status="valid", deadline_extraction_status="extracted", application_deadline="2026-11-29")
+    assert "application_deadline" in errors(r)                     # no evidence
+    r["deadline_evidence"] = "The last date to submit applications is November 29, 2026."
+    assert "application_deadline" not in errors(r)
+    r.update(deadline_extraction_status="source_inaccessible")
+    assert "application_deadline" in errors(r)                     # inaccessible source cannot carry a date

@@ -299,6 +299,22 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
             rec["review_status"] = rv["review_status"] if rv else "not_reviewed"
             rec["review_note"] = rv["review_note"] if rv else ""
 
+    # ---- article-level opportunity enrichment (evidence-backed; headline 'deadline' untouched) ----
+    enr_path = out_dir / "opportunity_enrichment.csv"
+    enr = {}
+    if enr_path.exists():
+        enr = {r["record_id"]: r for r in csv.DictReader(enr_path.open())}
+    enr_cols = ["application_deadline", "deadline_extraction_status", "deadline_confidence", "deadline_evidence",
+                "deadline_source_url", "programme_dates", "eligibility", "fees_stipend", "location_mode",
+                "application_url", "organiser"]
+    for rec in records:
+        if rec["record_type"] == "opportunity":
+            e = enr.get(rec["record_id"], {})
+            for c in enr_cols:
+                rec[c] = e.get(c, "")
+            rec["deadline_extraction_status"] = e.get("deadline_extraction_status") or "not_checked"
+            rec["enrichment_checked_on"] = e.get("checked_on", "")
+
     # ---- validate -------------------------------------------------------------------
     valid, rejected, issues = validate_records(records, today)
     for r in rejected:
@@ -332,6 +348,8 @@ def process(raw_paths: list[Path] | Path, out_dir: Path, today: date | None = No
     with pd.ExcelWriter(out_dir / "ai_policy_activity.xlsx", engine="openpyxl") as xw:
         df_a.to_excel(xw, sheet_name="activities", index=False)
         df_o.to_excel(xw, sheet_name="opportunities", index=False)
+        if enr_path.exists():
+            pd.read_csv(enr_path, dtype=str, keep_default_na=False).to_excel(xw, sheet_name="opportunity_enrichment", index=False)
         df_n.to_excel(xw, sheet_name="national_activities", index=False)
         stakeholders.to_excel(xw, sheet_name="stakeholders", index=False)
         coverage.to_excel(xw, sheet_name="state_coverage", index=False)
@@ -385,6 +403,10 @@ def build_stakeholders(records: list[dict], check_sites: bool) -> pd.DataFrame:
                 links[name].append(r)
     status = check_reachability(sorted({reg[n].website for n in links if reg[n].website})) if check_sites else {}
     today = date.today().isoformat()
+    previous = {}
+    prev_path = PROCESSED / "stakeholders.csv"
+    if not check_sites and prev_path.exists():       # keep earlier dated checks rather than erasing them
+        previous = dict(pd.read_csv(prev_path, dtype=str, keep_default_na=False)[["entity", "website_check"]].values)
     rows = []
     for name, rs in links.items():
         a = reg[name]
@@ -398,7 +420,7 @@ def build_stakeholders(records: list[dict], check_sites: bool) -> pd.DataFrame:
             "evidence_record_ids": "|".join(r["record_id"] for r in sorted(rs, key=lambda r: r["published_date"], reverse=True)[:15]),
             "official_website": a.website,
             "website_check": (f"{status.get(a.website, 'not checked')} on {today}" if a.website and check_sites
-                              else "not checked" if a.website else "no website curated"),
+                              else previous.get(name, "not checked") if a.website else "no website curated"),
             "public_contact_route": "Not collected: use the official website" if a.website else "Not collected",
             "entry_basis": "project registry (curated identity); linked to records by headline match",
         })
